@@ -332,18 +332,16 @@ nzV = nz(b.v)
 f_calcV() =>
     uV = 0.0
     dV = 0.0
-
-      switch
-          (b.c - b.l) > (b.h - b.c)   => uV := nzV
-          (b.c - b.l) < (b.h - b.c)   => dV := -nzV
-          b.c > b.o => uV := nzV
-          b.c < b.o => dV := -nzV
-          b.c > nz(b.c[1]) => uV :=   nzV
-          b.c < nz(b.c[1]) => dV :=   -nzV
-          nz(uV[1]) > 0 => uV := uV   + nzV
-          nz(dV[1]) < 0 => dV := dV   - nzV
-
-      [uV, dV]
+    switch
+        (b.c - b.l) > (b.h - b.c) => uV := nzV
+        (b.c - b.l) < (b.h - b.c) => dV := -nzV
+        b.c > b.o => uV := nzV
+        b.c < b.o => dV := -nzV
+        b.c > nz(b.c[1]) => uV := nzV
+        b.c < nz(b.c[1]) => dV := -nzV
+        nz(uV[1]) > 0 => uV := uV + nzV
+        nz(dV[1]) < 0 => dV := dV - nzV
+    [uV, dV]
 
 
 
