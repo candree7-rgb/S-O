@@ -337,8 +337,8 @@ f_calcV() =>
         (b.c - b.l) < (b.h - b.c) => dV := -nzV
         b.c > b.o => uV := nzV
         b.c < b.o => dV := -nzV
-        b.c > nz(b.c[1]) => uV := nzV
-        b.c < nz(b.c[1]) => dV := -nzV
+        b.c > nz((b[1]).c) => uV := nzV
+        b.c < nz((b[1]).c) => dV := -nzV
         nz(uV[1]) > 0 => uV := uV + nzV
         nz(dV[1]) < 0 => dV := dV - nzV
     [uV, dV]
@@ -495,10 +495,10 @@ totalVolume = uV + math.abs(dV)
 volumeCellColor = dashboardRedBackground
 volumeTextColor = totalVolume >= 50 ? dashboardGreenText : dashboardRedText
 if (totalVolume >= 50)
-     totalVolume := totalVolume*2
-     volumeCellColor := dashboardGreenBackground
+    totalVolume := totalVolume*2
+    volumeCellColor := dashboardGreenBackground
 else
-     totalVolume := totalVolume*-2
+    totalVolume := totalVolume*-2
 
 volumeSentiment = totalVolume
 
@@ -674,20 +674,20 @@ get_tf(_lvl) =>
             z := _lvl ==   1 ? '60' : _lvl == 2 ? '240' : z
             z
         else if y <= 120
-             z := _lvl == 1      ? '240' : _lvl == 2 ? 'D' : z
-             z
+            z := _lvl == 1      ? '240' : _lvl == 2 ? 'D' : z
+            z
         else if y <= 240
-             z := _lvl == 1      ? 'D' : _lvl == 2 ? 'W' : z
-             z
+            z := _lvl == 1      ? 'D' : _lvl == 2 ? 'W' : z
+            z
         else if y <= 1440
-             z := _lvl == 1      ? 'W' : _lvl == 2 ? 'M' : z
-             z
+            z := _lvl == 1      ? 'W' : _lvl == 2 ? 'M' : z
+            z
         else if y <= 10080
-             z := _lvl == 1      ? 'M' : z
-             z
+            z := _lvl == 1      ? 'M' : z
+            z
         else
-             z := z
-             z
+            z := z
+            z
     else
         z := _lvl == 1 ? mtf_lvl1 : _lvl == 2 ? mtf_lvl2 : z
         z
@@ -721,17 +721,17 @@ get_mrc() =>
         v_upband2_1 = v_upband2 + v_meanrange * gradsize * 4
         v_upband2_9 = v_upband2 + v_meanrange * gradsize * -4
         if high >= v_upband2_9 and high < v_upband2
-             v_condition := 1
-             v_condition
+            v_condition := 1
+            v_condition
         else if high >= v_upband2 and high < v_upband2_1
-             v_condition := 2
-             v_condition
+            v_condition := 2
+            v_condition
         else if high >= v_upband2_1
-             v_condition := 3
-             v_condition
+            v_condition := 3
+            v_condition
         else if close <= v_meanline + v_meanrange
-             v_condition := 4
-             v_condition
+            v_condition := 4
+            v_condition
         else
             v_condition := 5
             v_condition
@@ -740,20 +740,20 @@ get_mrc() =>
         v_loband2_1 = v_loband2 - v_meanrange * gradsize * 4
         v_loband2_9 = v_loband2 - v_meanrange * gradsize * -4
         if low <= v_loband2_9 and low > v_loband2
-             v_condition := -1
-             v_condition
+            v_condition := -1
+            v_condition
         else if low <= v_loband2 and low > v_loband2_1
-             v_condition := -2
-             v_condition
+            v_condition := -2
+            v_condition
         else if low <= v_loband2_1
-             v_condition := -3
-             v_condition
+            v_condition := -3
+            v_condition
         else if close >= v_meanline + v_meanrange
-             v_condition := -4
-             v_condition
+            v_condition := -4
+            v_condition
         else
-             v_condition := -5
-             v_condition
+            v_condition := -5
+            v_condition
 
     [v_meanline, v_meanrange, v_upband1, v_loband1, v_upband2, v_loband2, v_condition]
 
@@ -791,8 +791,8 @@ get_stat(_cond) =>
         ret := 'Price Near Mean\n'
         ret
     else if _cond == -5
-          ret := 'Price Below Mean\n'
-          ret
+        ret := 'Price Below Mean\n'
+        ret
     ret
 
 //-----------------------
@@ -1139,9 +1139,9 @@ getPlotColor(signal, bullColor, bearColor) =>
 
 getAreaColor(signal, useMomentum, bullColor, bearColor) =>
     if useMomentum
-         ta.rising(signal, 1) ? bullColor : bearColor
+        ta.rising(signal, 1) ? bullColor : bearColor
     else
-         signal >= 0.0 ? bullColor : bearColor
+        signal >= 0.0 ? bullColor : bearColor
 
 getColorGradientFromSteps(_source, _center, _steps, weakColor, strongColor) =>
     var float _qtyAdvDec = 0.
@@ -1522,9 +1522,9 @@ ts = os != 0 ? lower : upper
 
 //Get trailing stop adaptive MA
 if na(ts[1]) and not na(ts)
-     perf_ama := ts
+    perf_ama := ts
 else
-     perf_ama += perf_idx * (ts - perf_ama)
+    perf_ama += perf_idx * (ts - perf_ama)
 //-----------------------------------------------------------------------------}
 //Dashboard
 //-----------------------------------------------------------------------------{
