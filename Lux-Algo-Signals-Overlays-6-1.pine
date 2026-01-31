@@ -171,12 +171,11 @@ get_vwap(session) =>
     if session > session[1]
         num := close * volume
         den := volume
-
-    else if    session != 0 and session == session[1]
-         num   += close * volume
-         den   += volume
+    else if session != 0 and session == session[1]
+        num += close * volume
+        den += volume
     else
-         num   := na
+        num := na
 
     [num, den]
 
