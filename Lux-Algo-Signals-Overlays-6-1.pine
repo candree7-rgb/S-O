@@ -202,31 +202,19 @@ get_range(session, session_name, session_css)=>
         t := time
         max := high
         min := low
+        bx := box.new(n, max, n, min, bgcolor = color.new(session_css, bg_transp), border_color = show_outline ? session_css : na, border_style = line.style_dotted)
+        if show_txt and showSessions
+            lbl := label.new(t, max, session_name, xloc = xloc.bar_time, textcolor = session_css, style = label.style_label_down, color = color.new(color.white, 100), size = size.tiny)
 
-        bx := box.new(n, max, n, min
-          , bgcolor = color.new(session_css, bg_transp)
-              , border_color = show_outline ? session_css : na
-              , border_style = line.style_dotted)
+    if session != 0 and session == session[1] and showSessions
+        max := math.max(high, max)
+        min := math.min(low, min)
+        box.set_top(bx, max)
+        box.set_rightbottom(bx, n, min)
+        if show_txt
+            label.set_xy(lbl, int(math.avg(t, time)), max)
 
-          if show_txt and showSessions
-              lbl := label.new(t, max, session_name
-                , xloc = xloc.bar_time
-                , textcolor = session_css
-                , style = label.style_label_down
-                , color = color.new(color.white, 100)
-                , size = size.tiny)
-
-      if session != 0 and session == session[1] and showSessions
-          max := math.max(high, max)
-          min := math.min(low, min)
-
-          box.set_top(bx, max)
-          box.set_rightbottom(bx, n, min)
-
-          if show_txt
-              label.set_xy(lbl, int(math.avg(t, time)), max)
-
-      [session != 0 ? na : max, session != 0 ? na : min]
+    [session != 0 ? na : max, session != 0 ? na : min]
 
 //-----------------------------------------------------------------------------}
 //Sessions
