@@ -10,6 +10,8 @@ indicator("Universal Backtester", overlay=true, max_labels_count=500, max_boxes_
 // ─────────────────────────────────────────────────────────────────────────────
 groupSignal = "SIGNAL SOURCE"
 signalSource = input.string("External", "Signal Source", options=["External", "Manual Condition"], tooltip="External: Connect to another indicator's plot\nManual: Use built-in conditions", group=groupSignal)
+enableLong = input.bool(true, "Enable Long Trades", tooltip="Allow Long/Buy trades", group=groupSignal)
+enableShort = input.bool(true, "Enable Short Trades", tooltip="Allow Short/Sell trades", group=groupSignal)
 
 // External signal inputs (connect to other indicator's plots)
 extLongSignal = input.source(close, "Long Signal Source", tooltip="Connect to indicator's Long/Buy signal plot (1 = signal, 0 = no signal)", group=groupSignal)
@@ -18,8 +20,9 @@ extLongThreshold = input.float(0.5, "Long Signal Threshold", tooltip="Signal tri
 extShortThreshold = input.float(0.5, "Short Signal Threshold", tooltip="Signal triggers when source crosses above this value", group=groupSignal)
 
 // Entry price source
-entryPriceSource = input.string("Close", "Entry Price", options=["Close", "Open", "High", "Low", "HL2", "HLC3", "OHLC4", "Custom Source"], tooltip="Price used for entry", group=groupSignal)
-extEntryPrice = input.source(close, "Custom Entry Price Source", tooltip="Connect to RZ level or custom price", group=groupSignal)
+entryPriceSource = input.string("Custom Source", "Entry Price Type", options=["Close", "Open", "High", "Low", "HL2", "HLC3", "OHLC4", "Custom Source"], tooltip="Price used for entry", group=groupSignal)
+extLongEntryPrice = input.source(close, "Long Entry Price Source", tooltip="Connect to RZ S1 (Support) for Long entries", group=groupSignal)
+extShortEntryPrice = input.source(close, "Short Entry Price Source", tooltip="Connect to RZ R1 (Resistance) for Short entries", group=groupSignal)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TP/SL SETTINGS
@@ -91,8 +94,8 @@ showTPSLLines = input.bool(true, "Show TP/SL Lines", group=groupDashboard)
 // ATR Calculation
 atr = ta.atr(atrLength)
 
-// Get Entry Price
-getEntryPrice() =>
+// Get Entry Price for Long trades
+getLongEntryPrice() =>
     switch entryPriceSource
         "Close" => close
         "Open" => open
@@ -101,7 +104,20 @@ getEntryPrice() =>
         "HL2" => hl2
         "HLC3" => hlc3
         "OHLC4" => ohlc4
-        "Custom Source" => extEntryPrice
+        "Custom Source" => extLongEntryPrice
+        => close
+
+// Get Entry Price for Short trades
+getShortEntryPrice() =>
+    switch entryPriceSource
+        "Close" => close
+        "Open" => open
+        "High" => high
+        "Low" => low
+        "HL2" => hl2
+        "HLC3" => hlc3
+        "OHLC4" => ohlc4
+        "Custom Source" => extShortEntryPrice
         => close
 
 // Calculate TP distance
@@ -122,9 +138,9 @@ getSLDistance() =>
         "Custom Source" => math.abs(extSlSource - close)
         => atr * slAtrMult
 
-// Signal Detection
-longSignal = signalSource == "External" ? ta.crossover(extLongSignal, extLongThreshold) : false
-shortSignal = signalSource == "External" ? ta.crossover(extShortSignal, extShortThreshold) : false
+// Signal Detection (respects Enable Long/Short settings)
+longSignal = enableLong and (signalSource == "External" ? ta.crossover(extLongSignal, extLongThreshold) : false)
+shortSignal = enableShort and (signalSource == "External" ? ta.crossover(extShortSignal, extShortThreshold) : false)
 
 // =============================================================================
 // TRADE TRACKING
@@ -222,7 +238,7 @@ if longSignal and not inLongTrade and (allowPyramiding or not inShortTrade)
         inShortTrade := false
 
     inLongTrade := true
-    entryPrice := getEntryPrice()
+    entryPrice := getLongEntryPrice()
     tpPrice := entryPrice + getTPDistance()
     slPrice := entryPrice - getSLDistance()
     entryBar := bar_index
@@ -233,7 +249,7 @@ if shortSignal and not inShortTrade and (allowPyramiding or not inLongTrade)
         inLongTrade := false
 
     inShortTrade := true
-    entryPrice := getEntryPrice()
+    entryPrice := getShortEntryPrice()
     tpPrice := entryPrice - getTPDistance()
     slPrice := entryPrice + getSLDistance()
     entryBar := bar_index
@@ -390,10 +406,10 @@ plot(showTPSLLines and inShortTrade ? entryPrice : na, "Short Entry", color=colo
 
 // Trade Entry Markers with Labels
 if showTradesOnChart and longSignal and not inLongTrade[1]
-    label.new(bar_index, low, "LONG\n" + str.tostring(getEntryPrice(), "#.###"), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+    label.new(bar_index, low, "LONG\n" + str.tostring(getLongEntryPrice(), "#.###"), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
 
 if showTradesOnChart and shortSignal and not inShortTrade[1]
-    label.new(bar_index, high, "SHORT\n" + str.tostring(getEntryPrice(), "#.###"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
+    label.new(bar_index, high, "SHORT\n" + str.tostring(getShortEntryPrice(), "#.###"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
 
 // =============================================================================
 // DASHBOARD
