@@ -239,6 +239,17 @@ if shortSignal and not inShortTrade and (allowPyramiding or not inLongTrade)
     entryBar := bar_index
     tradeDirection := -1
 
+// Variables for exit visualization
+var bool longExitTP = false
+var bool longExitSL = false
+var bool shortExitTP = false
+var bool shortExitSL = false
+var float exitPriceViz = na
+longExitTP := false
+longExitSL := false
+shortExitTP := false
+shortExitSL := false
+
 // Exit Logic - Check TP/SL
 if inLongTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
@@ -259,6 +270,13 @@ if inLongTrade and bar_index >= entryBar
         totalProfitPercent += pnlPercent
         totalProfitAmount += pnlAmount
         currentCapital += pnlAmount
+
+        // Track exit for visualization
+        exitPriceViz := exitPrice
+        if exitResult == 1
+            longExitTP := true
+        else
+            longExitSL := true
 
         if pnlAmount > 0
             winningTrades += 1
@@ -310,6 +328,13 @@ if inShortTrade and bar_index >= entryBar
         totalProfitAmount += pnlAmount
         currentCapital += pnlAmount
 
+        // Track exit for visualization
+        exitPriceViz := exitPrice
+        if exitResult == 1
+            shortExitTP := true
+        else
+            shortExitSL := true
+
         if pnlAmount > 0
             winningTrades += 1
             grossProfit += pnlAmount
@@ -344,18 +369,31 @@ if inShortTrade and bar_index >= entryBar
 // VISUALIZATION
 // =============================================================================
 
+// Variables for tracking trade visualization
+var float lastEntryPrice = na
+var float lastTpPrice = na
+var float lastSlPrice = na
+var float lastExitPrice = na
+var int lastEntryBar = na
+var int lastExitBar = na
+var int lastTradeDir = 0
+var bool lastTradeWin = false
+
 // Plot TP/SL Lines for current trade
-plot(showTPSLLines and inLongTrade ? tpPrice : na, "Long TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=1)
-plot(showTPSLLines and inLongTrade ? slPrice : na, "Long SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=1)
-plot(showTPSLLines and inLongTrade ? entryPrice : na, "Long Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inLongTrade ? tpPrice : na, "Long TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=2)
+plot(showTPSLLines and inLongTrade ? slPrice : na, "Long SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=2)
+plot(showTPSLLines and inLongTrade ? entryPrice : na, "Long Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=2)
 
-plot(showTPSLLines and inShortTrade ? tpPrice : na, "Short TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=1)
-plot(showTPSLLines and inShortTrade ? slPrice : na, "Short SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=1)
-plot(showTPSLLines and inShortTrade ? entryPrice : na, "Short Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inShortTrade ? tpPrice : na, "Short TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=2)
+plot(showTPSLLines and inShortTrade ? slPrice : na, "Short SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=2)
+plot(showTPSLLines and inShortTrade ? entryPrice : na, "Short Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=2)
 
-// Trade Entry Markers
-plotshape(showTradesOnChart and longSignal, "Long Entry", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
-plotshape(showTradesOnChart and shortSignal, "Short Entry", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+// Trade Entry Markers with Labels
+if showTradesOnChart and longSignal and not inLongTrade[1]
+    label.new(bar_index, low, "LONG\n" + str.tostring(getEntryPrice(), "#.###"), style=label.style_label_up, color=color.green, textcolor=color.white, size=size.small)
+
+if showTradesOnChart and shortSignal and not inShortTrade[1]
+    label.new(bar_index, high, "SHORT\n" + str.tostring(getEntryPrice(), "#.###"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
 
 // =============================================================================
 // DASHBOARD
