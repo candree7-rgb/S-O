@@ -22,6 +22,12 @@ smartTrail = input.bool(true, "Smart Trail", inline = "1", group = groupOverlay)
 trendCatcher = input.bool(false, "Trend Catcher", inline = "2", group = groupOverlay)
 neoCloud = input.bool(false, "Neo Cloud", inline = "3", group = groupOverlay)
 reversalZone = input.bool(true, "Reversal Zones", inline = "1", group = groupOverlay)
+
+// Reversal Zone Sensitivity Settings
+groupReversalZone = "REVERSAL ZONE SETTINGS"
+rzLength = input.int(100, "RZ Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for SuperSmoother (default: 100)", group = groupReversalZone)
+rzOuterMult = input.float(2.415, "RZ Outer Multiplier", minval = 0.5, maxval = 5.0, step = 0.005, tooltip = "Outer band multiplier (default: 2.415)", group = groupReversalZone)
+rzGradSize = input.float(0.5, "RZ Gradient Size", minval = 0.1, maxval = 2.0, step = 0.05, tooltip = "Zone gradient size (default: 0.5)", group = groupReversalZone)
 trendTracer = input.bool(false, "Trend Tracer", inline = "2", group = groupOverlay)
 showDashboard = input.bool(true, "Dashboard", inline = "3", group = groupOverlay)
 showTrailingStoploss = input.bool(false, "Trailing Stoploss", inline = "4", group = groupOverlay)
@@ -542,9 +548,9 @@ if showDashboard
 indiSet = false
 source = hlc3
 type = 'SuperSmoother'
-length = 100
+length = rzLength
 innermult = 1.0
-outermult = 2.415
+outermult = rzOuterMult
 
 ChartSet = false
 drawchannel = true
@@ -562,10 +568,10 @@ mtf_lvl2 = 'W'
 //*******************************************************************************
 // Functions Start {
 //*******************************************************************************
-var pi = 2 * math.asin(1)
-var mult = pi * innermult
-var mult2 = pi * outermult
-var gradsize = 0.5
+pi = 2 * math.asin(1)
+mult = pi * innermult
+mult2 = pi * outermult
+gradsize = rzGradSize
 var gradtransp = zonetransp
 
 //-----------------------
