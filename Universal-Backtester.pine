@@ -87,6 +87,28 @@ dashboardSize = input.string("Normal", "Dashboard Size", options=["Tiny", "Small
 showTradesOnChart = input.bool(true, "Show Trades on Chart", group=groupDashboard)
 showTPSLLines = input.bool(true, "Show TP/SL Lines", group=groupDashboard)
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WEBHOOK / ALERTS
+// ─────────────────────────────────────────────────────────────────────────────
+groupWebhook = "WEBHOOK / ALERTS"
+enableWebhookAlerts = input.bool(false, "Enable Webhook Alerts", tooltip="Enable alert conditions for webhook integration", group=groupWebhook)
+
+// Ready State inputs (connect to RZ Zone 3 levels from LuxAlgo)
+extLongReadySignal = input.source(close, "Long Ready Signal", tooltip="Connect to 'Long Ready' plot from LuxAlgo (1 when oversold)", group=groupWebhook)
+extShortReadySignal = input.source(close, "Short Ready Signal", tooltip="Connect to 'Short Ready' plot from LuxAlgo (1 when overbought)", group=groupWebhook)
+
+// Zone levels for ML data
+extRZS1 = input.source(close, "RZ S1 (Support 1)", tooltip="Connect to RZ S1 level", group=groupWebhook)
+extRZS2 = input.source(close, "RZ S2 (Support 2)", tooltip="Connect to RZ S2 level", group=groupWebhook)
+extRZS3 = input.source(close, "RZ S3 (Support 3)", tooltip="Connect to RZ S3 level", group=groupWebhook)
+extRZR1 = input.source(close, "RZ R1 (Resistance 1)", tooltip="Connect to RZ R1 level", group=groupWebhook)
+extRZR2 = input.source(close, "RZ R2 (Resistance 2)", tooltip="Connect to RZ R2 level", group=groupWebhook)
+extRZR3 = input.source(close, "RZ R3 (Resistance 3)", tooltip="Connect to RZ R3 level", group=groupWebhook)
+
+// ML Feature inputs (optional)
+extRSI = input.source(close, "RSI Source", tooltip="Connect to RSI for ML data", group=groupWebhook)
+extVolume = input.source(close, "Volume Ratio Source", tooltip="Connect to volume ratio indicator", group=groupWebhook)
+
 // =============================================================================
 // CALCULATIONS
 // =============================================================================
@@ -141,6 +163,56 @@ getSLDistance() =>
 // Signal Detection (respects Enable Long/Short settings)
 longSignal = enableLong and (signalSource == "External" ? ta.crossover(extLongSignal, extLongThreshold) : false)
 shortSignal = enableShort and (signalSource == "External" ? ta.crossover(extShortSignal, extShortThreshold) : false)
+
+// =============================================================================
+// READY STATE TRACKING (for Webhook System)
+// =============================================================================
+
+// Ready state detection (when in Zone 3 = oversold/overbought)
+longReady = extLongReadySignal > 0.5   // In oversold zone
+shortReady = extShortReadySignal > 0.5  // In overbought zone
+
+// Track ready state changes
+var bool wasLongReady = false
+var bool wasShortReady = false
+var int longReadyBar = na
+var int shortReadyBar = na
+var int barsInLongReady = 0
+var int barsInShortReady = 0
+
+// Long ready state tracking
+if longReady and not wasLongReady
+    longReadyBar := bar_index
+    barsInLongReady := 0
+if longReady
+    barsInLongReady += 1
+if not longReady
+    barsInLongReady := 0
+wasLongReady := longReady
+
+// Short ready state tracking
+if shortReady and not wasShortReady
+    shortReadyBar := bar_index
+    barsInShortReady := 0
+if shortReady
+    barsInShortReady += 1
+if not shortReady
+    barsInShortReady := 0
+wasShortReady := shortReady
+
+// Calculate projected TP/SL for ready states (before trade triggers)
+projectedLongEntry = getLongEntryPrice()
+projectedShortEntry = getShortEntryPrice()
+projectedLongTP = projectedLongEntry + getTPDistance()
+projectedLongSL = projectedLongEntry - getSLDistance()
+projectedShortTP = projectedShortEntry - getTPDistance()
+projectedShortSL = projectedShortEntry + getSLDistance()
+
+// Zone width calculations (for ML)
+longZoneWidth = math.abs(extRZS1 - extRZS3)
+shortZoneWidth = math.abs(extRZR1 - extRZR3)
+distanceToLongEntry = math.abs(close - projectedLongEntry)
+distanceToShortEntry = math.abs(close - projectedShortEntry)
 
 // =============================================================================
 // TRADE TRACKING
@@ -513,3 +585,75 @@ plot(inShortTrade ? 1 : 0, "In Short Trade", display=display.none)
 plot(entryPrice, "Current Entry Price", display=display.none)
 plot(tpPrice, "Current TP Price", display=display.none)
 plot(slPrice, "Current SL Price", display=display.none)
+
+// =============================================================================
+// WEBHOOK EXPORT PLOTS (for Railway/Supabase integration)
+// =============================================================================
+// Ready State
+plot(longReady ? 1 : 0, "Long Ready State", display=display.none)
+plot(shortReady ? 1 : 0, "Short Ready State", display=display.none)
+
+// Projected Entry/TP/SL (updated every bar while ready)
+plot(projectedLongEntry, "Projected Long Entry", display=display.none)
+plot(projectedLongTP, "Projected Long TP", display=display.none)
+plot(projectedLongSL, "Projected Long SL", display=display.none)
+plot(projectedShortEntry, "Projected Short Entry", display=display.none)
+plot(projectedShortTP, "Projected Short TP", display=display.none)
+plot(projectedShortSL, "Projected Short SL", display=display.none)
+
+// ML Feature Exports
+plot(atr, "ATR Value", display=display.none)
+plot(longZoneWidth, "Long Zone Width (S1-S3)", display=display.none)
+plot(shortZoneWidth, "Short Zone Width (R1-R3)", display=display.none)
+plot(barsInLongReady, "Bars in Long Ready", display=display.none)
+plot(barsInShortReady, "Bars in Short Ready", display=display.none)
+plot(distanceToLongEntry, "Distance to Long Entry", display=display.none)
+plot(distanceToShortEntry, "Distance to Short Entry", display=display.none)
+
+// Trade outcome for ML (1 = win, -1 = loss, 0 = no exit)
+tradeOutcome = longExitTP or shortExitTP ? 1 : longExitSL or shortExitSL ? -1 : 0
+plot(tradeOutcome, "Trade Outcome", display=display.none)
+
+// =============================================================================
+// ALERT CONDITIONS
+// =============================================================================
+// Ready state alerts (first entry into zone)
+longReadyNew = longReady and not wasLongReady[1]
+shortReadyNew = shortReady and not wasShortReady[1]
+
+// Exit ready state (left zone without triggering)
+longReadyCancelled = not longReady and wasLongReady[1] and not longSignal
+shortReadyCancelled = not shortReady and wasShortReady[1] and not shortSignal
+
+// Trigger alerts (actual entry)
+longTriggered = longSignal
+shortTriggered = shortSignal
+
+// Exit alerts
+longExitAlert = longExitTP or longExitSL
+shortExitAlert = shortExitTP or shortExitSL
+
+// Alert conditions (only fire when webhook alerts enabled)
+alertcondition(enableWebhookAlerts and longReadyNew, title="READY_LONG", message='{"type":"READY","direction":"LONG","coin":"{{ticker}}","entry":{{plot("Projected Long Entry")}},"tp":{{plot("Projected Long TP")}},"sl":{{plot("Projected Long SL")}},"atr":{{plot("ATR Value")}},"zoneWidth":{{plot("Long Zone Width (S1-S3)")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortReadyNew, title="READY_SHORT", message='{"type":"READY","direction":"SHORT","coin":"{{ticker}}","entry":{{plot("Projected Short Entry")}},"tp":{{plot("Projected Short TP")}},"sl":{{plot("Projected Short SL")}},"atr":{{plot("ATR Value")}},"zoneWidth":{{plot("Short Zone Width (R1-R3)")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and longReady, title="UPDATE_LONG", message='{"type":"UPDATE","direction":"LONG","coin":"{{ticker}}","entry":{{plot("Projected Long Entry")}},"tp":{{plot("Projected Long TP")}},"sl":{{plot("Projected Long SL")}},"barsReady":{{plot("Bars in Long Ready")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortReady, title="UPDATE_SHORT", message='{"type":"UPDATE","direction":"SHORT","coin":"{{ticker}}","entry":{{plot("Projected Short Entry")}},"tp":{{plot("Projected Short TP")}},"sl":{{plot("Projected Short SL")}},"barsReady":{{plot("Bars in Short Ready")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and longTriggered, title="TRIGGERED_LONG", message='{"type":"TRIGGERED","direction":"LONG","coin":"{{ticker}}","entry":{{plot("Current Entry Price")}},"tp":{{plot("Current TP Price")}},"sl":{{plot("Current SL Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortTriggered, title="TRIGGERED_SHORT", message='{"type":"TRIGGERED","direction":"SHORT","coin":"{{ticker}}","entry":{{plot("Current Entry Price")}},"tp":{{plot("Current TP Price")}},"sl":{{plot("Current SL Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and longExitTP, title="EXIT_LONG_WIN", message='{"type":"EXIT","direction":"LONG","outcome":"WIN","coin":"{{ticker}}","exitPrice":{{plot("Current TP Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and longExitSL, title="EXIT_LONG_LOSS", message='{"type":"EXIT","direction":"LONG","outcome":"LOSS","coin":"{{ticker}}","exitPrice":{{plot("Current SL Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortExitTP, title="EXIT_SHORT_WIN", message='{"type":"EXIT","direction":"SHORT","outcome":"WIN","coin":"{{ticker}}","exitPrice":{{plot("Current TP Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortExitSL, title="EXIT_SHORT_LOSS", message='{"type":"EXIT","direction":"SHORT","outcome":"LOSS","coin":"{{ticker}}","exitPrice":{{plot("Current SL Price")}},"time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and longReadyCancelled, title="CANCELLED_LONG", message='{"type":"CANCELLED","direction":"LONG","coin":"{{ticker}}","time":"{{time}}"}')
+
+alertcondition(enableWebhookAlerts and shortReadyCancelled, title="CANCELLED_SHORT", message='{"type":"CANCELLED","direction":"SHORT","coin":"{{ticker}}","time":"{{time}}"}')
