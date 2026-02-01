@@ -171,12 +171,11 @@ get_vwap(session) =>
     if session > session[1]
         num := close * volume
         den := volume
-
-    else if    session != 0 and session == session[1]
-         num   += close * volume
-         den   += volume
+    else if session != 0 and session == session[1]
+        num += close * volume
+        den += volume
     else
-         num   := na
+        num := na
 
     [num, den]
 
@@ -203,31 +202,19 @@ get_range(session, session_name, session_css)=>
         t := time
         max := high
         min := low
+        bx := box.new(n, max, n, min, bgcolor = color.new(session_css, bg_transp), border_color = show_outline ? session_css : na, border_style = line.style_dotted)
+        if show_txt and showSessions
+            lbl := label.new(t, max, session_name, xloc = xloc.bar_time, textcolor = session_css, style = label.style_label_down, color = color.new(color.white, 100), size = size.tiny)
 
-        bx := box.new(n, max, n, min
-          , bgcolor = color.new(session_css, bg_transp)
-              , border_color = show_outline ? session_css : na
-              , border_style = line.style_dotted)
+    if session != 0 and session == session[1] and showSessions
+        max := math.max(high, max)
+        min := math.min(low, min)
+        box.set_top(bx, max)
+        box.set_rightbottom(bx, n, min)
+        if show_txt
+            label.set_xy(lbl, int(math.avg(t, time)), max)
 
-          if show_txt and showSessions
-              lbl := label.new(t, max, session_name
-                , xloc = xloc.bar_time
-                , textcolor = session_css
-                , style = label.style_label_down
-                , color = color.new(color.white, 100)
-                , size = size.tiny)
-
-      if session != 0 and session == session[1] and showSessions
-          max := math.max(high, max)
-          min := math.min(low, min)
-
-          box.set_top(bx, max)
-          box.set_rightbottom(bx, n, min)
-
-          if show_txt
-              label.set_xy(lbl, int(math.avg(t, time)), max)
-
-      [session != 0 ? na : max, session != 0 ? na : min]
+    [session != 0 ? na : max, session != 0 ? na : min]
 
 //-----------------------------------------------------------------------------}
 //Sessions
@@ -296,8 +283,7 @@ plotshape(is_sesa != 0 and show_ses_div and show_sesa and showSessions, "·"
   , display = display.all - display.status_line
   , editable = false)
 
-plotshape(is_sesa != is_sesa[1] and show_ses_div and show_sesa and showSessions,
-"NYE"
+plotshape(is_sesa != is_sesa[1] and show_ses_div and show_sesa and showSessions, "NYE"
   , shape.labelup
   , location.bottom
   , na
@@ -318,8 +304,7 @@ plotshape(is_sesb != 0 and show_ses_div and show_sesb and showSessions, "·"
   , display = display.all - display.status_line
   , editable = false)
 
-plotshape(is_sesb != is_sesb[1] and show_ses_div and show_sesb and showSessions,
-"LDN"
+plotshape(is_sesb != is_sesb[1] and show_ses_div and show_sesb and showSessions, "LDN"
   ,   shape.labelup
   ,   location.bottom
   ,   na
@@ -347,18 +332,16 @@ nzV = nz(b.v)
 f_calcV() =>
     uV = 0.0
     dV = 0.0
-
-      switch
-          (b.c - b.l) > (b.h - b.c)   => uV := nzV
-          (b.c - b.l) < (b.h - b.c)   => dV := -nzV
-          b.c > b.o => uV := nzV
-          b.c < b.o => dV := -nzV
-          b.c > nz(b.c[1]) => uV :=   nzV
-          b.c < nz(b.c[1]) => dV :=   -nzV
-          nz(uV[1]) > 0 => uV := uV   + nzV
-          nz(dV[1]) < 0 => dV := dV   - nzV
-
-      [uV, dV]
+    switch
+        (b.c - b.l) > (b.h - b.c) => uV := nzV
+        (b.c - b.l) < (b.h - b.c) => dV := -nzV
+        b.c > b.o => uV := nzV
+        b.c < b.o => dV := -nzV
+        b.c > nz((b[1]).c) => uV := nzV
+        b.c < nz((b[1]).c) => dV := -nzV
+        nz(uV[1]) > 0 => uV := uV + nzV
+        nz(dV[1]) < 0 => dV := dV - nzV
+    [uV, dV]
 
 
 
@@ -388,8 +371,7 @@ if (candleColorType != 'Confirmation Simple')
     macdSlowLength := 25
     macdSignalLength:=8
 
-[MacdX, signalX, histX] = ta.macd(close, macdFastLength, macdSlowLength,
-macdSignalLength)
+[MacdX, signalX, histX] = ta.macd(close, macdFastLength, macdSlowLength, macdSignalLength)
 
 //candle color scheme
 greenHigh = #4ce653
@@ -513,10 +495,10 @@ totalVolume = uV + math.abs(dV)
 volumeCellColor = dashboardRedBackground
 volumeTextColor = totalVolume >= 50 ? dashboardGreenText : dashboardRedText
 if (totalVolume >= 50)
-     totalVolume := totalVolume*2
-     volumeCellColor := dashboardGreenBackground
+    totalVolume := totalVolume*2
+    volumeCellColor := dashboardGreenBackground
 else
-     totalVolume := totalVolume*-2
+    totalVolume := totalVolume*-2
 
 volumeSentiment = totalVolume
 
@@ -625,8 +607,7 @@ SAK_smoothing(_type, _src, _length) =>
         a2
     if _type == 'BandStop'
         beta := math.cos(cycle)
-        gamma := 1 / math.cos(cycle * 2 * 0.1) // delta default to 0.1. Acceptable
-delta -- 0.05<d<0.5
+        gamma := 1 / math.cos(cycle * 2 * 0.1) // delta default to 0.1. Acceptable delta -- 0.05<d<0.5
         alpha := gamma - math.sqrt(gamma * gamma - 1)
         c0 := (1 + alpha) / 2
         b1 := -2 * beta
@@ -673,9 +654,7 @@ supersmoother(_src, _length) =>
 //-----------------------
 // ————— Converts current chart resolution into a float minutes value.
 f_resInMinutes() =>
-    _resInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 :
-timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60.
-* 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
+    _resInMinutes = timeframe.multiplier * (timeframe.isseconds ? 1. / 60 : timeframe.isminutes ? 1. : timeframe.isdaily ? 60. * 24 : timeframe.isweekly ? 60. * 24 * 7 : timeframe.ismonthly ? 60. * 24 * 30.4375 : na)
     _resInMinutes
 
 get_tf(_lvl) =>
@@ -695,20 +674,20 @@ get_tf(_lvl) =>
             z := _lvl ==   1 ? '60' : _lvl == 2 ? '240' : z
             z
         else if y <= 120
-             z := _lvl == 1      ? '240' : _lvl == 2 ? 'D' : z
-             z
+            z := _lvl == 1      ? '240' : _lvl == 2 ? 'D' : z
+            z
         else if y <= 240
-             z := _lvl == 1      ? 'D' : _lvl == 2 ? 'W' : z
-             z
+            z := _lvl == 1      ? 'D' : _lvl == 2 ? 'W' : z
+            z
         else if y <= 1440
-             z := _lvl == 1      ? 'W' : _lvl == 2 ? 'M' : z
-             z
+            z := _lvl == 1      ? 'W' : _lvl == 2 ? 'M' : z
+            z
         else if y <= 10080
-             z := _lvl == 1      ? 'M' : z
-             z
+            z := _lvl == 1      ? 'M' : z
+            z
         else
-             z := z
-             z
+            z := z
+            z
     else
         z := _lvl == 1 ? mtf_lvl1 : _lvl == 2 ? mtf_lvl2 : z
         z
@@ -742,17 +721,17 @@ get_mrc() =>
         v_upband2_1 = v_upband2 + v_meanrange * gradsize * 4
         v_upband2_9 = v_upband2 + v_meanrange * gradsize * -4
         if high >= v_upband2_9 and high < v_upband2
-             v_condition := 1
-             v_condition
+            v_condition := 1
+            v_condition
         else if high >= v_upband2 and high < v_upband2_1
-             v_condition := 2
-             v_condition
+            v_condition := 2
+            v_condition
         else if high >= v_upband2_1
-             v_condition := 3
-             v_condition
+            v_condition := 3
+            v_condition
         else if close <= v_meanline + v_meanrange
-             v_condition := 4
-             v_condition
+            v_condition := 4
+            v_condition
         else
             v_condition := 5
             v_condition
@@ -761,23 +740,22 @@ get_mrc() =>
         v_loband2_1 = v_loband2 - v_meanrange * gradsize * 4
         v_loband2_9 = v_loband2 - v_meanrange * gradsize * -4
         if low <= v_loband2_9 and low > v_loband2
-             v_condition := -1
-             v_condition
+            v_condition := -1
+            v_condition
         else if low <= v_loband2 and low > v_loband2_1
-             v_condition := -2
-             v_condition
+            v_condition := -2
+            v_condition
         else if low <= v_loband2_1
-             v_condition := -3
-             v_condition
+            v_condition := -3
+            v_condition
         else if close >= v_meanline + v_meanrange
-             v_condition := -4
-             v_condition
+            v_condition := -4
+            v_condition
         else
-             v_condition := -5
-             v_condition
+            v_condition := -5
+            v_condition
 
-    [v_meanline, v_meanrange, v_upband1, v_loband1, v_upband2, v_loband2,
-v_condition]
+    [v_meanline, v_meanrange, v_upband1, v_loband1, v_upband2, v_loband2, v_condition]
 
 //-----------------------
 // MTF Analysis
@@ -813,8 +791,8 @@ get_stat(_cond) =>
         ret := 'Price Near Mean\n'
         ret
     else if _cond == -5
-          ret := 'Price Below Mean\n'
-          ret
+        ret := 'Price Below Mean\n'
+        ret
     ret
 
 //-----------------------
@@ -858,16 +836,11 @@ float p_loband1 = drawchannel ? loband1 : na
 float p_upband2 = drawchannel ? upband2 : na
 float p_loband2 = drawchannel ? loband2 : na
 
-//z = plot(p_meanline, color=color.new(#FFCD00, 0), style=plot.style_line, title='
-Mean', linewidth=2)
-//x1 = plot(p_upband1, color=color.new(color.green, 50), style=plot.style_circles,
-title=' R1', linewidth=1)
-//x2 = plot(p_loband1, color=color.new(color.green, 50), style=plot.style_circles,
-title=' S1', linewidth=1)
-//y1 = plot(p_upband2, color=color.new(color.red, 50), style=plot.style_line,
-title=' R2', linewidth=1)
-//y2 = plot(p_loband2, color=color.new(color.red, 50), style=plot.style_line,
-title=' S2', linewidth=1)
+//z = plot(p_meanline, color=color.new(#FFCD00, 0), style=plot.style_line, title='Mean', linewidth=2)
+//x1 = plot(p_upband1, color=color.new(color.green, 50), style=plot.style_circles, title=' R1', linewidth=1)
+//x2 = plot(p_loband1, color=color.new(color.green, 50), style=plot.style_circles, title=' S1', linewidth=1)
+//y1 = plot(p_upband2, color=color.new(color.red, 50), style=plot.style_line, title=' R2', linewidth=1)
+//y2 = plot(p_loband2, color=color.new(color.red, 50), style=plot.style_line, title=' S2', linewidth=1)
 
 //-----------------------
 // Draw zone
@@ -939,10 +912,8 @@ avg(src,length,mult)=>
     os = 0,max = 0.,min = 0.
     os := src > upper ? 1 : src < lower ? 0 : os[1]
     spt = os == 1 ? lower : upper
-    max := ta.cross(src,spt) ? math.max(src,max[1]) : os == 1 ?
-math.max(src,max[1]) : spt
-    min := ta.cross(src,spt) ? math.min(src,min[1]) : os == 0 ?
-math.min(src,min[1]) : spt
+    max := ta.cross(src,spt) ? math.max(src,max[1]) : os == 1 ? math.max(src,max[1]) : spt
+    min := ta.cross(src,spt) ? math.min(src,min[1]) : os == 0 ? math.min(src,min[1]) : spt
     math.avg(max,min)
 //------------------------------------------------------------------------------
 tenkan = avg(close,tenkan_len,tenkan_mult)
@@ -1038,7 +1009,7 @@ rtp1 = bar_index + 40
 //                              :J???????~!????????.                           |
 //                             :J????????~!????????J^                          |
 //                            :J?????????~!?????????J^
-[ PRICE ]
+//[ PRICE ]
 //                        .:~??????????~!?????????!!~                            |
 //                       :?~^??????????~!?????????!^?!                          |
 //                      ~:^^^??????????~!?????????!^^!?.                        |
@@ -1107,8 +1078,7 @@ lineForegroundTrans = 2.
 customTransparency = 30
 maxStepsForGradient = 8
 
-// The defaults are colors that Google uses for its Data Science libraries (e.g.
-TensorFlow). They are considered to be colorblind-safe.
+// The defaults are colors that Google uses for its Data Science libraries (e.g. TensorFlow). They are considered to be colorblind-safe.
 var color fastBullishColor = color.black
 var color normalBullishColor = color.black
 var color slowBullishColor = color.black
@@ -1169,9 +1139,9 @@ getPlotColor(signal, bullColor, bearColor) =>
 
 getAreaColor(signal, useMomentum, bullColor, bearColor) =>
     if useMomentum
-         ta.rising(signal, 1) ? bullColor : bearColor
+        ta.rising(signal, 1) ? bullColor : bearColor
     else
-         signal >= 0.0 ? bullColor : bearColor
+        signal >= 0.0 ? bullColor : bearColor
 
 getColorGradientFromSteps(_source, _center, _steps, weakColor, strongColor) =>
     var float _qtyAdvDec = 0.
@@ -1183,10 +1153,7 @@ getColorGradientFromSteps(_source, _center, _steps, weakColor, strongColor) =>
     bool _dn = _chg < 0
     bool _srcBull = _source > _center
     bool _srcBear = _source < _center
-    _qtyAdvDec := _srcBull ? _xUp ? 1 : _up ? math.min(_maxSteps, _qtyAdvDec + 1) :
-_dn ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _srcBear ? _xDn ? 1 : _dn ?
-math.min(_maxSteps, _qtyAdvDec + 1) : _up ? math.max(1, _qtyAdvDec - 1) :
-_qtyAdvDec : _qtyAdvDec
+    _qtyAdvDec := _srcBull ? _xUp ? 1 : _up ? math.min(_maxSteps, _qtyAdvDec + 1) : _dn ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _srcBear ? _xDn ? 1 : _dn ? math.min(_maxSteps, _qtyAdvDec + 1) : _up ? math.max(1, _qtyAdvDec - 1) : _qtyAdvDec : _qtyAdvDec
     color colorGradient = color.from_gradient(_qtyAdvDec, 1, _maxSteps, weakColor, strongColor)
     colorGradient
 
@@ -1254,62 +1221,32 @@ seriesSlowMirror = useMirror ? -seriesSlow + 2*offsetSlow : na
 // Fast Color Gradients (Areas and Lines)
 fastBaseColor = getPlotColor(signalFast, fastBullishColor, fastBearishColor)
 fastBaseColorInverse = getPlotColor(signalFast, fastBearishColor, fastBullishColor)
-fastAreaGradientFromSource = getColorGradientFromSource(seriesFast, -1.+offsetFast,
-1+offsetFast, color.new(fastBaseColor, areaFastTrans), fastBaseColor)
-fastAreaGradientFromSteps = getColorGradientFromSteps(seriesFast, offsetFast,
-maxStepsForGradient, color.new(fastBaseColor, areaFastTrans), fastBaseColor)
-fastLineGradientFromSource = getColorGradientFromSource(seriesFast, -1+offsetFast,
-1+offsetFast, color.new(fastBaseColor, lineFastTrans), fastBaseColor)
-fastLineGradientFromSteps = getColorGradientFromSteps(seriesFast, offsetFast,
-maxStepsForGradient, color.new(fastBaseColor, lineFastTrans), fastBaseColor)
-fastAreaGradientFromSourceInverse = getColorGradientFromSource(seriesFast, -
-1.+offsetFast, 1+offsetFast, color.new(fastBaseColorInverse, areaFastTrans),
-fastBaseColorInverse)
-fastAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesFast,
-offsetFast, maxStepsForGradient, color.new(fastBaseColorInverse, areaFastTrans),
-fastBaseColorInverse)
+fastAreaGradientFromSource = getColorGradientFromSource(seriesFast, -1.+offsetFast, 1+offsetFast, color.new(fastBaseColor, areaFastTrans), fastBaseColor)
+fastAreaGradientFromSteps = getColorGradientFromSteps(seriesFast, offsetFast, maxStepsForGradient, color.new(fastBaseColor, areaFastTrans), fastBaseColor)
+fastLineGradientFromSource = getColorGradientFromSource(seriesFast, -1+offsetFast, 1+offsetFast, color.new(fastBaseColor, lineFastTrans), fastBaseColor)
+fastLineGradientFromSteps = getColorGradientFromSteps(seriesFast, offsetFast, maxStepsForGradient, color.new(fastBaseColor, lineFastTrans), fastBaseColor)
+fastAreaGradientFromSourceInverse = getColorGradientFromSource(seriesFast, -1.+offsetFast, 1+offsetFast, color.new(fastBaseColorInverse, areaFastTrans), fastBaseColorInverse)
+fastAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesFast, offsetFast, maxStepsForGradient, color.new(fastBaseColorInverse, areaFastTrans), fastBaseColorInverse)
 
 // Normal Color Gradients (Areas and Lines)
-normalBaseColor = getPlotColor(signalNormal, normalBullishColor,
-normalBearishColor)
-normalBaseColorInverse = getPlotColor(signalNormal, normalBearishColor,
-normalBullishColor)
-normalAreaGradientFromSource = getColorGradientFromSource(seriesNormal, -
-1.+offsetNormal, 1.+offsetNormal, color.new(normalBaseColor, areaNormalTrans),
-normalBaseColor)
-normalAreaGradientFromSteps = getColorGradientFromSteps(seriesNormal, offsetNormal,
-maxStepsForGradient, color.new(normalBaseColor, areaNormalTrans), normalBaseColor)
-normalLineGradientFromSource = getColorGradientFromSource(seriesNormal, -
-1+offsetNormal, 1+offsetNormal, color.new(normalBaseColor, lineNormalTrans),
-normalBaseColor)
-normalLineGradientFromSteps = getColorGradientFromSteps(seriesNormal, offsetNormal,
-maxStepsForGradient, color.new(normalBaseColor, lineNormalTrans), normalBaseColor)
-normalAreaGradientFromSourceInverse = getColorGradientFromSource(seriesNormal, -
-1.+offsetNormal, 1.+offsetNormal, color.new(normalBaseColorInverse,
-areaNormalTrans), normalBaseColorInverse)
-normalAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesNormal,
-offsetNormal, maxStepsForGradient, color.new(normalBaseColorInverse,
-areaNormalTrans), normalBaseColorInverse)
+normalBaseColor = getPlotColor(signalNormal, normalBullishColor, normalBearishColor)
+normalBaseColorInverse = getPlotColor(signalNormal, normalBearishColor, normalBullishColor)
+normalAreaGradientFromSource = getColorGradientFromSource(seriesNormal, -1.+offsetNormal, 1.+offsetNormal, color.new(normalBaseColor, areaNormalTrans), normalBaseColor)
+normalAreaGradientFromSteps = getColorGradientFromSteps(seriesNormal, offsetNormal, maxStepsForGradient, color.new(normalBaseColor, areaNormalTrans), normalBaseColor)
+normalLineGradientFromSource = getColorGradientFromSource(seriesNormal, -1+offsetNormal, 1+offsetNormal, color.new(normalBaseColor, lineNormalTrans), normalBaseColor)
+normalLineGradientFromSteps = getColorGradientFromSteps(seriesNormal, offsetNormal, maxStepsForGradient, color.new(normalBaseColor, lineNormalTrans), normalBaseColor)
+normalAreaGradientFromSourceInverse = getColorGradientFromSource(seriesNormal, -1.+offsetNormal, 1.+offsetNormal, color.new(normalBaseColorInverse, areaNormalTrans), normalBaseColorInverse)
+normalAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesNormal, offsetNormal, maxStepsForGradient, color.new(normalBaseColorInverse, areaNormalTrans), normalBaseColorInverse)
 
 // Slow Color Gradients (Areas and Lines)
 slowBaseColor = getPlotColor(signalSlow, slowBullishColor, slowBearishColor)
 slowBaseColorInverse = getPlotColor(signalSlow, slowBearishColor, slowBullishColor)
-slowAreaGradientFromSource = getColorGradientFromSource(seriesSlow, -
-1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColor, areaSlowTrans),
-slowBaseColor)
-slowAreaGradientFromSteps = getColorGradientFromSteps(seriesSlow, offsetSlow,
-maxStepsForGradient, color.new(slowBaseColor, areaSlowTrans), slowBaseColor)
-slowLineGradientFromSource = getColorGradientFromSource(seriesSlow, -
-1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColor, lineSlowTrans),
-slowBaseColor)
-slowLineGradientFromSteps = getColorGradientFromSteps(seriesSlow, offsetSlow,
-maxStepsForGradient, color.new(slowBaseColor, lineSlowTrans), slowBaseColor)
-slowAreaGradientFromSourceInverse = getColorGradientFromSource(seriesSlow, -
-1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColorInverse, areaSlowTrans),
-slowBaseColorInverse)
-slowAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesSlow,
-offsetSlow, maxStepsForGradient, color.new(slowBaseColorInverse, areaSlowTrans),
-slowBaseColorInverse)
+slowAreaGradientFromSource = getColorGradientFromSource(seriesSlow, -1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColor, areaSlowTrans), slowBaseColor)
+slowAreaGradientFromSteps = getColorGradientFromSteps(seriesSlow, offsetSlow, maxStepsForGradient, color.new(slowBaseColor, areaSlowTrans), slowBaseColor)
+slowLineGradientFromSource = getColorGradientFromSource(seriesSlow, -1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColor, lineSlowTrans), slowBaseColor)
+slowLineGradientFromSteps = getColorGradientFromSteps(seriesSlow, offsetSlow, maxStepsForGradient, color.new(slowBaseColor, lineSlowTrans), slowBaseColor)
+slowAreaGradientFromSourceInverse = getColorGradientFromSource(seriesSlow, -1.75+offsetSlow, 1.75+offsetSlow, color.new(slowBaseColorInverse, areaSlowTrans), slowBaseColorInverse)
+slowAreaGradientFromStepsInverse = getColorGradientFromSteps(seriesSlow, offsetSlow, maxStepsForGradient, color.new(slowBaseColorInverse, areaSlowTrans), slowBaseColorInverse)
 
 // =========================================
 // ==== Plot Parameters and Logic Gates ====
@@ -1320,12 +1257,9 @@ isNormal   = speedToEmphasize == "Normal"
 isFast =   speedToEmphasize == "Fast"
 
 // Series Colors
-seriesSlowColor = showOsc or isSlow ? color.new(slowLineGradientFromSource,
-lineSlowTrans) : na
-seriesNormalColor = showOsc or isNormal ? color.new(normalLineGradientFromSource,
-lineNormalTrans) : na
-seriesFastColor = showOsc or isFast ? color.new(fastLineGradientFromSource,
-lineFastTrans) : na
+seriesSlowColor = showOsc or isSlow ? color.new(slowLineGradientFromSource, lineSlowTrans) : na
+seriesNormalColor = showOsc or isNormal ? color.new(normalLineGradientFromSource, lineNormalTrans) : na
+seriesFastColor = showOsc or isFast ? color.new(fastLineGradientFromSource, lineFastTrans) : na
 seriesSlowMirrorColor = useMirror ? seriesSlowColor : na
 seriesNormalMirrorColor = useMirror ? seriesNormalColor : na
 seriesFastMirrorColor = useMirror ? seriesFastColor : na
@@ -1368,16 +1302,12 @@ fastBearishMedianCross = ta.crossunder(seriesFast, 0)
 fastBullishMedianCross = ta.crossover(seriesFast, 0)
 
 // Last Crossover Values
-lastBearishCrossValue = ta.valuewhen(condition=bearishCross, source=seriesNormal,
-occurrence=1)
-lastBullishCrossValue = ta.valuewhen(condition=bullishCross , source=seriesNormal,
-occurrence=1)
+lastBearishCrossValue = ta.valuewhen(condition=bearishCross, source=seriesNormal, occurrence=1)
+lastBullishCrossValue = ta.valuewhen(condition=bullishCross, source=seriesNormal, occurrence=1)
 // Trigger Wave Size Comparison
 triggerWaveFactor = sizePercent/100
-isSmallerBearishCross = bearishCross and seriesNormal < lastBearishCrossValue *
-triggerWaveFactor
-isSmallerBullishCross = bullishCross and seriesNormal > lastBullishCrossValue *
-triggerWaveFactor
+isSmallerBearishCross = bearishCross and seriesNormal < lastBearishCrossValue * triggerWaveFactor
+isSmallerBullishCross = bullishCross and seriesNormal > lastBullishCrossValue * triggerWaveFactor
 
 // ===========================
 // ==== Kernel Estimators ====
@@ -1386,8 +1316,7 @@ triggerWaveFactor
 // The following kernel estimators are based on the Gaussian Kernel.
 
 // They are used for:
-//     (1) Confirming directional changes in the slow oscillator (i.e. a type of
-trend filter)
+//     (1) Confirming directional changes in the slow oscillator (i.e. a type of trend filter)
 //     (2) Visualizing directional changes as a dynamic ribbon (i.e. an additional oscillator that can crossover with the user specified oscillator of interest)
 //     (3) Visualizing transient directional changes while in the midst of a larger uptrend or downtrend (i.e. via color changes on the ribbon)
 
@@ -1407,10 +1336,8 @@ isBearishDivZone = ta.barssince(bearishCross[1]) < divThreshold
 isBullishDivZone = ta.barssince(bullishCross[1]) < divThreshold
 
 // Crossover Detection
-isBearishTriggerWave = isSmallerBearishCross and isBearishDivZone and
-isBearishKernelTrend
-isBullishTriggerWave = isSmallerBullishCross and isBullishDivZone and
-isBullishKernelTrend
+isBearishTriggerWave = isSmallerBearishCross and isBearishDivZone and isBearishKernelTrend
+isBullishTriggerWave = isSmallerBullishCross and isBullishDivZone and isBullishKernelTrend
 
 // =======================
 // ==== Plots & Fills ====
@@ -1459,8 +1386,7 @@ showGradient = true
 
 //Dashboard
 showDash = true
-//dashboardLocation = input.string('Top Right', 'Location', options = ['Top
-Right', 'Bottom Right', 'Bottom Left'], group = 'Dashboard')
+//dashboardLocation = input.string('Top Right', 'Location', options = ['Top Right', 'Bottom Right', 'Bottom Left'], group = 'Dashboard')
 textSize = 'Small'
 
 //-----------------------------------------------------------------------------}
@@ -1499,8 +1425,7 @@ for factor in factors
     up = hl2 + atr * factor
     dn = hl2 - atr * factor
 
-    get_spt.trend := close > get_spt.upper ? 1 : close < get_spt.lower ? 0 :
-get_spt.trend
+    get_spt.trend := close > get_spt.upper ? 1 : close < get_spt.lower ? 0 : get_spt.trend
     get_spt.upper := close[1] < get_spt.upper ? math.min(up, get_spt.upper) : up
     get_spt.lower := close[1] > get_spt.lower ? math.max(dn, get_spt.lower) : dn
 
@@ -1534,10 +1459,8 @@ var array<vector> perfclusters = na
 
 if last_bar_index - bar_index <= maxData
     for _ = 0 to maxIter
-        factors_clusters := array.from(vector.new(array.new<float>(0)),
-vector.new(array.new<float>(0)), vector.new(array.new<float>(0)))
-        perfclusters := array.from(vector.new(array.new<float>(0)),
-vector.new(array.new<float>(0)), vector.new(array.new<float>(0)))
+        factors_clusters := array.from(vector.new(array.new<float>(0)), vector.new(array.new<float>(0)), vector.new(array.new<float>(0)))
+        perfclusters := array.from(vector.new(array.new<float>(0)), vector.new(array.new<float>(0)), vector.new(array.new<float>(0)))
 
         //Assign value to cluster
         i = 0
@@ -1557,8 +1480,7 @@ vector.new(array.new<float>(0)), vector.new(array.new<float>(0)))
             new_centroids.push(cluster_.out.avg())
 
         //Test if centroid changed
-        if new_centroids.get(0) == centroids.get(0) and new_centroids.get(1) ==
-centroids.get(1) and new_centroids.get(2) == centroids.get(2)
+        if new_centroids.get(0) == centroids.get(0) and new_centroids.get(1) == centroids.get(1) and new_centroids.get(2) == centroids.get(2)
             break
 
         centroids := new_centroids
@@ -1600,9 +1522,9 @@ ts = os != 0 ? lower : upper
 
 //Get trailing stop adaptive MA
 if na(ts[1]) and not na(ts)
-     perf_ama := ts
+    perf_ama := ts
 else
-     perf_ama += perf_idx * (ts - perf_ama)
+    perf_ama += perf_idx * (ts - perf_ama)
 //-----------------------------------------------------------------------------}
 //Dashboard
 //-----------------------------------------------------------------------------{
@@ -1610,8 +1532,7 @@ else
 //-----------------------------------------------------------------------------{
 css = os != 0 ? bullCss : bearCss
 
-plot(showTrailingStoploss ? ts : na, 'Trailing Stop', os != os[1] ? na : css,
-editable = false)
+plot(showTrailingStoploss ? ts : na, 'Trailing Stop', os != os[1] ? na : css, editable = false)
 
 plot(showMovingAverage? perf_ama:na, 'Trailing Stop AMA',
   ta.cross(close, perf_ama) ? na
@@ -1637,8 +1558,7 @@ if showSignals
 // =======================
 
 // Signal Plots
-//plot(position == 1 and bearishCross ? high+5 : na, title="Bearish Cross",
-style=plot.style_cross, linewidth=2, color=c_bearish, offset=-1)
+//plot(position == 1 and bearishCross ? high+5 : na, title="Bearish Cross", style=plot.style_cross, linewidth=2, color=c_bearish, offset=-1)
 //plot(position == -1 and bearishCross ? high+5 : na, title="Bearish Cross",
 //plot(position == -1 and bearishCross ? high+5 : na, title="Bearish Cross", style=plot.style_circles, linewidth=2, color=c_bearish, offset=-1)
 //plot(position == 1 and isBearishTriggerWave ? high+5 : na, title="Bearish Trigger Cross", style=plot.style_cross, linewidth=3, color=c_bearish, offset=-1)
