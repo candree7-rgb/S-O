@@ -411,6 +411,19 @@ if showTradesOnChart and longSignal and not inLongTrade[1]
 if showTradesOnChart and shortSignal and not inShortTrade[1]
     label.new(bar_index, high, "SHORT\n" + str.tostring(getShortEntryPrice(), "#.###"), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.small)
 
+// Trade Exit Markers - Show WIN (TP hit) or LOSS (SL hit)
+if showTradesOnChart and longExitTP
+    label.new(bar_index, high, "WIN ✓\n" + str.tostring(exitPriceViz, "#.###"), style=label.style_label_down, color=color.new(#00c853, 0), textcolor=color.white, size=size.small)
+
+if showTradesOnChart and longExitSL
+    label.new(bar_index, high, "LOSS ✗\n" + str.tostring(exitPriceViz, "#.###"), style=label.style_label_down, color=color.new(#ff1744, 0), textcolor=color.white, size=size.small)
+
+if showTradesOnChart and shortExitTP
+    label.new(bar_index, low, "WIN ✓\n" + str.tostring(exitPriceViz, "#.###"), style=label.style_label_up, color=color.new(#00c853, 0), textcolor=color.white, size=size.small)
+
+if showTradesOnChart and shortExitSL
+    label.new(bar_index, low, "LOSS ✗\n" + str.tostring(exitPriceViz, "#.###"), style=label.style_label_up, color=color.new(#ff1744, 0), textcolor=color.white, size=size.small)
+
 // =============================================================================
 // DASHBOARD
 // =============================================================================
