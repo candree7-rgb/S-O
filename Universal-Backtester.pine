@@ -1,0 +1,454 @@
+//@version=6
+indicator("Universal Backtester", overlay=true, max_labels_count=500, max_boxes_count=500)
+
+// =============================================================================
+// SETTINGS
+// =============================================================================
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIGNAL SOURCE
+// ─────────────────────────────────────────────────────────────────────────────
+groupSignal = "SIGNAL SOURCE"
+signalSource = input.string("External", "Signal Source", options=["External", "Manual Condition"], tooltip="External: Connect to another indicator's plot\nManual: Use built-in conditions", group=groupSignal)
+
+// External signal inputs (connect to other indicator's plots)
+extLongSignal = input.source(close, "Long Signal Source", tooltip="Connect to indicator's Long/Buy signal plot (1 = signal, 0 = no signal)", group=groupSignal)
+extShortSignal = input.source(close, "Short Signal Source", tooltip="Connect to indicator's Short/Sell signal plot (1 = signal, 0 = no signal)", group=groupSignal)
+extLongThreshold = input.float(0.5, "Long Signal Threshold", tooltip="Signal triggers when source crosses above this value", group=groupSignal)
+extShortThreshold = input.float(0.5, "Short Signal Threshold", tooltip="Signal triggers when source crosses above this value", group=groupSignal)
+
+// Entry price source
+entryPriceSource = input.string("Close", "Entry Price", options=["Close", "Open", "High", "Low", "HL2", "HLC3", "OHLC4", "Custom Source"], tooltip="Price used for entry", group=groupSignal)
+extEntryPrice = input.source(close, "Custom Entry Price Source", tooltip="Connect to RZ level or custom price", group=groupSignal)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TP/SL SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+groupTPSL = "TP / SL SETTINGS"
+tpType = input.string("ATR", "TP Type", options=["ATR", "Percent", "Fixed Points", "Custom Source"], group=groupTPSL)
+slType = input.string("ATR", "SL Type", options=["ATR", "Percent", "Fixed Points", "Custom Source"], group=groupTPSL)
+
+// ATR Settings
+atrLength = input.int(14, "ATR Length", minval=1, group=groupTPSL)
+tpAtrMult = input.float(2.0, "TP ATR Multiplier", minval=0.1, step=0.1, tooltip="TP = Entry ± (ATR × Multiplier)", group=groupTPSL)
+slAtrMult = input.float(1.0, "SL ATR Multiplier", minval=0.1, step=0.1, tooltip="SL = Entry ∓ (ATR × Multiplier)", group=groupTPSL)
+
+// Percent Settings
+tpPercent = input.float(2.0, "TP Percent %", minval=0.1, step=0.1, group=groupTPSL)
+slPercent = input.float(1.0, "SL Percent %", minval=0.1, step=0.1, group=groupTPSL)
+
+// Fixed Points Settings
+tpPoints = input.float(100, "TP Points", minval=1, group=groupTPSL)
+slPoints = input.float(50, "SL Points", minval=1, group=groupTPSL)
+
+// Custom Source (connect to RZ levels etc)
+extTpSource = input.source(close, "Custom TP Source", tooltip="Connect to TP level from indicator", group=groupTPSL)
+extSlSource = input.source(close, "Custom SL Source", tooltip="Connect to SL level from indicator", group=groupTPSL)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCURACY SETTINGS (Lower Timeframe)
+// ─────────────────────────────────────────────────────────────────────────────
+groupAccuracy = "ACCURACY SETTINGS"
+useLowerTF = input.bool(true, "Use Lower Timeframe Check", tooltip="Check lower timeframe to determine if TP or SL was hit first (more accurate but less history)", group=groupAccuracy)
+lowerTF = input.string("1", "Lower Timeframe", options=["1", "3", "5", "15", "30", "60"], tooltip="Timeframe in minutes for accuracy check", group=groupAccuracy)
+conflictMode = input.string("Pessimistic", "If Both Hit Same Bar", options=["Pessimistic", "Optimistic", "Open-Based"], tooltip="How to handle when both TP and SL are hit in same candle (without LTF data)", group=groupAccuracy)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEES SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+groupFees = "FEES SETTINGS"
+useFees = input.bool(true, "Enable Fees", group=groupFees)
+feeType = input.string("Percent", "Fee Type", options=["Percent", "Fixed"], group=groupFees)
+entryFee = input.float(0.04, "Entry Fee %", minval=0, step=0.01, tooltip="Fee on entry (e.g. 0.04% for Binance maker)", group=groupFees)
+exitFee = input.float(0.04, "Exit Fee %", minval=0, step=0.01, tooltip="Fee on exit (e.g. 0.04% for Binance maker)", group=groupFees)
+fixedFeePerTrade = input.float(0, "Fixed Fee per Trade", minval=0, tooltip="Fixed fee amount per trade", group=groupFees)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POSITION SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+groupPosition = "POSITION SETTINGS"
+initialCapital = input.float(10000, "Initial Capital", minval=100, group=groupPosition)
+positionSizing = input.string("Percent", "Position Sizing", options=["Percent", "Fixed"], group=groupPosition)
+positionPercent = input.float(100, "Position Size %", minval=1, maxval=100, tooltip="Percent of capital per trade", group=groupPosition)
+fixedPositionSize = input.float(1000, "Fixed Position Size", minval=1, group=groupPosition)
+allowPyramiding = input.bool(false, "Allow Pyramiding", tooltip="Allow multiple positions at once", group=groupPosition)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DASHBOARD SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+groupDashboard = "DASHBOARD"
+showDashboard = input.bool(true, "Show Dashboard", group=groupDashboard)
+dashboardPosition = input.string("Top Right", "Dashboard Position", options=["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group=groupDashboard)
+dashboardSize = input.string("Normal", "Dashboard Size", options=["Tiny", "Small", "Normal", "Large"], group=groupDashboard)
+showTradesOnChart = input.bool(true, "Show Trades on Chart", group=groupDashboard)
+showTPSLLines = input.bool(true, "Show TP/SL Lines", group=groupDashboard)
+
+// =============================================================================
+// CALCULATIONS
+// =============================================================================
+
+// ATR Calculation
+atr = ta.atr(atrLength)
+
+// Get Entry Price
+getEntryPrice() =>
+    switch entryPriceSource
+        "Close" => close
+        "Open" => open
+        "High" => high
+        "Low" => low
+        "HL2" => hl2
+        "HLC3" => hlc3
+        "OHLC4" => ohlc4
+        "Custom Source" => extEntryPrice
+        => close
+
+// Calculate TP distance
+getTPDistance() =>
+    switch tpType
+        "ATR" => atr * tpAtrMult
+        "Percent" => close * (tpPercent / 100)
+        "Fixed Points" => tpPoints * syminfo.mintick
+        "Custom Source" => math.abs(extTpSource - close)
+        => atr * tpAtrMult
+
+// Calculate SL distance
+getSLDistance() =>
+    switch slType
+        "ATR" => atr * slAtrMult
+        "Percent" => close * (slPercent / 100)
+        "Fixed Points" => slPoints * syminfo.mintick
+        "Custom Source" => math.abs(extSlSource - close)
+        => atr * slAtrMult
+
+// Signal Detection
+longSignal = signalSource == "External" ? ta.crossover(extLongSignal, extLongThreshold) : false
+shortSignal = signalSource == "External" ? ta.crossover(extShortSignal, extShortThreshold) : false
+
+// =============================================================================
+// TRADE TRACKING
+// =============================================================================
+
+// Trade State Variables
+var bool inLongTrade = false
+var bool inShortTrade = false
+var float entryPrice = na
+var float tpPrice = na
+var float slPrice = na
+var int entryBar = na
+var int tradeDirection = 0  // 1 = long, -1 = short
+
+// Statistics Variables
+var int totalTrades = 0
+var int winningTrades = 0
+var int losingTrades = 0
+var float totalProfitPercent = 0.0
+var float totalProfitAmount = 0.0
+var float currentCapital = initialCapital
+var float maxCapital = initialCapital
+var float maxDrawdown = 0.0
+var float grossProfit = 0.0
+var float grossLoss = 0.0
+var float largestWin = 0.0
+var float largestLoss = 0.0
+var int consecutiveWins = 0
+var int consecutiveLosses = 0
+var int maxConsecutiveWins = 0
+var int maxConsecutiveLosses = 0
+var int currentStreak = 0
+
+// Position Size Calculation
+getPositionSize() =>
+    if positionSizing == "Percent"
+        currentCapital * (positionPercent / 100)
+    else
+        fixedPositionSize
+
+// Fee Calculation
+calculateFees(tradeValue) =>
+    if not useFees
+        0.0
+    else if feeType == "Percent"
+        tradeValue * ((entryFee + exitFee) / 100)
+    else
+        fixedFeePerTrade
+
+// Check if TP or SL hit using Lower Timeframe
+checkTPSLHit(isLong, tp, sl) =>
+    tpHit = false
+    slHit = false
+
+    if isLong
+        tpHit := high >= tp
+        slHit := low <= sl
+    else
+        tpHit := low <= tp
+        slHit := high >= sl
+
+    // Determine which was hit first
+    result = 0  // 0 = none, 1 = TP, -1 = SL
+
+    if tpHit and slHit
+        // Both hit - use conflict resolution
+        if useLowerTF
+            // TODO: Implement lower TF check with request.security
+            // For now, fall back to conflict mode
+            if conflictMode == "Pessimistic"
+                result := -1  // SL first (worse case)
+            else if conflictMode == "Optimistic"
+                result := 1   // TP first (better case)
+            else  // Open-Based
+                if isLong
+                    result := open > (tp + sl) / 2 ? -1 : 1
+                else
+                    result := open < (tp + sl) / 2 ? -1 : 1
+        else
+            if conflictMode == "Pessimistic"
+                result := -1
+            else if conflictMode == "Optimistic"
+                result := 1
+            else
+                if isLong
+                    result := open > (tp + sl) / 2 ? -1 : 1
+                else
+                    result := open < (tp + sl) / 2 ? -1 : 1
+    else if tpHit
+        result := 1
+    else if slHit
+        result := -1
+
+    result
+
+// =============================================================================
+// TRADE EXECUTION LOGIC
+// =============================================================================
+
+// Entry Logic
+if longSignal and not inLongTrade and (allowPyramiding or not inShortTrade)
+    if inShortTrade
+        // Close short first (simplified - would need proper exit handling)
+        inShortTrade := false
+
+    inLongTrade := true
+    entryPrice := getEntryPrice()
+    tpPrice := entryPrice + getTPDistance()
+    slPrice := entryPrice - getSLDistance()
+    entryBar := bar_index
+    tradeDirection := 1
+
+if shortSignal and not inShortTrade and (allowPyramiding or not inLongTrade)
+    if inLongTrade
+        inLongTrade := false
+
+    inShortTrade := true
+    entryPrice := getEntryPrice()
+    tpPrice := entryPrice - getTPDistance()
+    slPrice := entryPrice + getSLDistance()
+    entryBar := bar_index
+    tradeDirection := -1
+
+// Exit Logic - Check TP/SL
+if inLongTrade and bar_index > entryBar
+    exitResult = checkTPSLHit(true, tpPrice, slPrice)
+
+    if exitResult != 0
+        posSize = getPositionSize()
+
+        float exitPrice = exitResult == 1 ? tpPrice : slPrice
+        float pnlPercent = ((exitPrice - entryPrice) / entryPrice) * 100
+        float pnlAmount = posSize * (pnlPercent / 100)
+        float fees = calculateFees(posSize)
+
+        pnlAmount := pnlAmount - fees
+        pnlPercent := (pnlAmount / posSize) * 100
+
+        totalTrades += 1
+        totalProfitPercent += pnlPercent
+        totalProfitAmount += pnlAmount
+        currentCapital += pnlAmount
+
+        if pnlAmount > 0
+            winningTrades += 1
+            grossProfit += pnlAmount
+            largestWin := math.max(largestWin, pnlAmount)
+            if currentStreak >= 0
+                currentStreak += 1
+            else
+                currentStreak := 1
+            consecutiveWins := currentStreak
+            maxConsecutiveWins := math.max(maxConsecutiveWins, consecutiveWins)
+        else
+            losingTrades += 1
+            grossLoss += math.abs(pnlAmount)
+            largestLoss := math.max(largestLoss, math.abs(pnlAmount))
+            if currentStreak <= 0
+                currentStreak -= 1
+            else
+                currentStreak := -1
+            consecutiveLosses := math.abs(currentStreak)
+            maxConsecutiveLosses := math.max(maxConsecutiveLosses, consecutiveLosses)
+
+        maxCapital := math.max(maxCapital, currentCapital)
+        drawdown = ((maxCapital - currentCapital) / maxCapital) * 100
+        maxDrawdown := math.max(maxDrawdown, drawdown)
+
+        inLongTrade := false
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+
+if inShortTrade and bar_index > entryBar
+    exitResult = checkTPSLHit(false, tpPrice, slPrice)
+
+    if exitResult != 0
+        posSize = getPositionSize()
+
+        float exitPrice = exitResult == 1 ? tpPrice : slPrice
+        float pnlPercent = ((entryPrice - exitPrice) / entryPrice) * 100
+        float pnlAmount = posSize * (pnlPercent / 100)
+        float fees = calculateFees(posSize)
+
+        pnlAmount := pnlAmount - fees
+        pnlPercent := (pnlAmount / posSize) * 100
+
+        totalTrades += 1
+        totalProfitPercent += pnlPercent
+        totalProfitAmount += pnlAmount
+        currentCapital += pnlAmount
+
+        if pnlAmount > 0
+            winningTrades += 1
+            grossProfit += pnlAmount
+            largestWin := math.max(largestWin, pnlAmount)
+            if currentStreak >= 0
+                currentStreak += 1
+            else
+                currentStreak := 1
+            consecutiveWins := currentStreak
+            maxConsecutiveWins := math.max(maxConsecutiveWins, consecutiveWins)
+        else
+            losingTrades += 1
+            grossLoss += math.abs(pnlAmount)
+            largestLoss := math.max(largestLoss, math.abs(pnlAmount))
+            if currentStreak <= 0
+                currentStreak -= 1
+            else
+                currentStreak := -1
+            consecutiveLosses := math.abs(currentStreak)
+            maxConsecutiveLosses := math.max(maxConsecutiveLosses, consecutiveLosses)
+
+        maxCapital := math.max(maxCapital, currentCapital)
+        drawdown = ((maxCapital - currentCapital) / maxCapital) * 100
+        maxDrawdown := math.max(maxDrawdown, drawdown)
+
+        inShortTrade := false
+        entryPrice := na
+        tpPrice := na
+        slPrice := na
+
+// =============================================================================
+// VISUALIZATION
+// =============================================================================
+
+// Plot TP/SL Lines for current trade
+plot(showTPSLLines and inLongTrade ? tpPrice : na, "Long TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inLongTrade ? slPrice : na, "Long SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inLongTrade ? entryPrice : na, "Long Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=1)
+
+plot(showTPSLLines and inShortTrade ? tpPrice : na, "Short TP", color=color.new(color.green, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inShortTrade ? slPrice : na, "Short SL", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=1)
+plot(showTPSLLines and inShortTrade ? entryPrice : na, "Short Entry", color=color.new(color.blue, 0), style=plot.style_linebr, linewidth=1)
+
+// Trade Entry Markers
+plotshape(showTradesOnChart and longSignal, "Long Entry", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
+plotshape(showTradesOnChart and shortSignal, "Short Entry", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+
+// =============================================================================
+// DASHBOARD
+// =============================================================================
+
+if showDashboard and barstate.islast
+    // Dashboard positioning
+    tablePos = switch dashboardPosition
+        "Top Right" => position.top_right
+        "Top Left" => position.top_left
+        "Bottom Right" => position.bottom_right
+        "Bottom Left" => position.bottom_left
+        => position.top_right
+
+    tableSize = switch dashboardSize
+        "Tiny" => size.tiny
+        "Small" => size.small
+        "Normal" => size.normal
+        "Large" => size.large
+        => size.normal
+
+    // Calculate statistics
+    winrate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0.0
+    avgWin = winningTrades > 0 ? grossProfit / winningTrades : 0.0
+    avgLoss = losingTrades > 0 ? grossLoss / losingTrades : 0.0
+    profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 999.99 : 0.0
+    returnPercent = ((currentCapital - initialCapital) / initialCapital) * 100
+    expectancy = totalTrades > 0 ? totalProfitAmount / totalTrades : 0.0
+
+    // Colors
+    profitColor = totalProfitAmount >= 0 ? color.green : color.red
+    winrateColor = winrate >= 50 ? color.green : color.orange
+    drawdownColor = maxDrawdown < 10 ? color.green : maxDrawdown < 20 ? color.orange : color.red
+
+    // Create table
+    var table dashboard = table.new(tablePos, 2, 14, bgcolor=color.new(#1e222d, 10), border_color=color.new(#373a46, 0), border_width=1)
+
+    // Header
+    table.cell(dashboard, 0, 0, "BACKTESTER", text_color=color.white, text_size=tableSize, bgcolor=color.new(#2962ff, 20))
+    table.cell(dashboard, 1, 0, "STATS", text_color=color.white, text_size=tableSize, bgcolor=color.new(#2962ff, 20))
+
+    // Stats rows
+    table.cell(dashboard, 0, 1, "Total Trades", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 1, str.tostring(totalTrades), text_color=color.white, text_size=tableSize)
+
+    table.cell(dashboard, 0, 2, "Win Rate", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 2, str.tostring(winrate, "#.##") + "%", text_color=winrateColor, text_size=tableSize)
+
+    table.cell(dashboard, 0, 3, "Wins / Losses", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 3, str.tostring(winningTrades) + " / " + str.tostring(losingTrades), text_color=color.white, text_size=tableSize)
+
+    table.cell(dashboard, 0, 4, "Net Profit", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 4, str.tostring(totalProfitAmount, "#.##"), text_color=profitColor, text_size=tableSize)
+
+    table.cell(dashboard, 0, 5, "Return %", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 5, str.tostring(returnPercent, "#.##") + "%", text_color=profitColor, text_size=tableSize)
+
+    table.cell(dashboard, 0, 6, "Profit Factor", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 6, str.tostring(profitFactor, "#.##"), text_color=profitFactor >= 1 ? color.green : color.red, text_size=tableSize)
+
+    table.cell(dashboard, 0, 7, "Max Drawdown", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 7, str.tostring(maxDrawdown, "#.##") + "%", text_color=drawdownColor, text_size=tableSize)
+
+    table.cell(dashboard, 0, 8, "Avg Win", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 8, str.tostring(avgWin, "#.##"), text_color=color.green, text_size=tableSize)
+
+    table.cell(dashboard, 0, 9, "Avg Loss", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 9, str.tostring(avgLoss, "#.##"), text_color=color.red, text_size=tableSize)
+
+    table.cell(dashboard, 0, 10, "Largest Win", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 10, str.tostring(largestWin, "#.##"), text_color=color.green, text_size=tableSize)
+
+    table.cell(dashboard, 0, 11, "Largest Loss", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 11, str.tostring(largestLoss, "#.##"), text_color=color.red, text_size=tableSize)
+
+    table.cell(dashboard, 0, 12, "Max Consec. Wins", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 12, str.tostring(maxConsecutiveWins), text_color=color.green, text_size=tableSize)
+
+    table.cell(dashboard, 0, 13, "Max Consec. Losses", text_color=color.gray, text_size=tableSize, text_halign=text.align_left)
+    table.cell(dashboard, 1, 13, str.tostring(maxConsecutiveLosses), text_color=color.red, text_size=tableSize)
+
+// =============================================================================
+// EXPORT PLOTS (for connecting to other indicators)
+// =============================================================================
+// These can be used by other indicators to read the backtester state
+plot(inLongTrade ? 1 : 0, "In Long Trade", display=display.none)
+plot(inShortTrade ? 1 : 0, "In Short Trade", display=display.none)
+plot(entryPrice, "Current Entry Price", display=display.none)
+plot(tpPrice, "Current TP Price", display=display.none)
+plot(slPrice, "Current SL Price", display=display.none)
