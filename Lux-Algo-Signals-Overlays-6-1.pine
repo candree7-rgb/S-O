@@ -25,9 +25,13 @@ reversalZone = input.bool(true, "Reversal Zones", inline = "1", group = groupOve
 
 // Reversal Zone Sensitivity Settings
 groupReversalZone = "REVERSAL ZONE SETTINGS"
-rzLength = input.int(100, "RZ Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for SuperSmoother (default: 100)", group = groupReversalZone)
-rzOuterMult = input.float(2.415, "RZ Outer Multiplier", minval = 0.5, maxval = 5.0, step = 0.005, tooltip = "Outer band multiplier (default: 2.415)", group = groupReversalZone)
-rzGradSize = input.float(0.5, "RZ Gradient Size", minval = 0.1, maxval = 2.0, step = 0.05, tooltip = "Zone gradient size (default: 0.5)", group = groupReversalZone)
+rzSource = input.string("hlc3", "RZ Source", options = ["close", "hlc3", "hl2", "ohlc4", "open", "high", "low"], tooltip = "Price source for calculation (default: hlc3)", group = groupReversalZone)
+rzFilterType = input.string("SuperSmoother", "RZ Filter Type", options = ["SuperSmoother", "EMA", "SMA", "RMA", "Gaussian", "Butterworth", "Ehlers EMA"], tooltip = "Smoothing filter type (default: SuperSmoother)", group = groupReversalZone)
+rzLength = input.int(100, "RZ Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for filter (default: 100)", group = groupReversalZone)
+rzTrLength = input.int(100, "RZ TR Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for True Range smoothing (default: same as RZ Length)", group = groupReversalZone)
+rzOuterMult = input.float(2.415, "RZ Outer Multiplier", minval = 0.5, maxval = 5.0, step = 0.005, tooltip = "Outer band multiplier - affects band width (default: 2.415)", group = groupReversalZone)
+rzGradSize = input.float(0.5, "RZ Gradient Size", minval = 0.1, maxval = 2.0, step = 0.05, tooltip = "Zone gradient size - spacing between bands (default: 0.5)", group = groupReversalZone)
+rzUsePiMult = input.bool(true, "RZ Use Pi Multiplier", tooltip = "Multiply outer mult by Pi (default: true). Disable for direct multiplier values.", group = groupReversalZone)
 trendTracer = input.bool(false, "Trend Tracer", inline = "2", group = groupOverlay)
 showDashboard = input.bool(true, "Dashboard", inline = "3", group = groupOverlay)
 showTrailingStoploss = input.bool(false, "Trailing Stoploss", inline = "4", group = groupOverlay)
@@ -546,9 +550,19 @@ if showDashboard
 //*******************************************************************************
 
 indiSet = false
-source = hlc3
-type = 'SuperSmoother'
+// Dynamic source selection
+source = switch rzSource
+    "close" => close
+    "hlc3" => hlc3
+    "hl2" => hl2
+    "ohlc4" => ohlc4
+    "open" => open
+    "high" => high
+    "low" => low
+    => hlc3
+type = rzFilterType
 length = rzLength
+trLength = rzTrLength
 innermult = 1.0
 outermult = rzOuterMult
 
@@ -570,7 +584,7 @@ mtf_lvl2 = 'W'
 //*******************************************************************************
 pi = 2 * math.asin(1)
 mult = pi * innermult
-mult2 = pi * outermult
+mult2 = rzUsePiMult ? pi * outermult : outermult
 gradsize = rzGradSize
 var gradtransp = zonetransp
 
@@ -706,7 +720,8 @@ get_tf(_lvl) =>
 get_mrc() =>
     v_condition = 0
     v_meanline = source
-    v_meanrange = supersmoother(ta.tr, length)
+    // Use trLength for True Range smoothing, and respect filter type
+    v_meanrange = type == 'SuperSmoother' ? supersmoother(ta.tr, trLength) : SAK_smoothing(type, ta.tr, trLength)
 
     //-- Get Line value
     if type == 'SuperSmoother'
