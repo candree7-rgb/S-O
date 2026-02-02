@@ -9,11 +9,11 @@ indicator("Universal Backtester", overlay=true, max_labels_count=500, max_boxes_
 // SIGNAL SOURCE
 // ─────────────────────────────────────────────────────────────────────────────
 groupSignal = "SIGNAL SOURCE"
-signalSource = input.string("External", "Signal Source", options=["External", "Manual Condition"], tooltip="External: Connect to another indicator's plot\nManual: Use built-in conditions", group=groupSignal)
+signalSource = input.string("Multi-Step", "Signal Source", options=["External", "Multi-Step"], tooltip="External: Simple crossover signal\nMulti-Step: LuxAlgo-style step conditions", group=groupSignal)
 enableLong = input.bool(true, "Enable Long Trades", tooltip="Allow Long/Buy trades", group=groupSignal)
 enableShort = input.bool(true, "Enable Short Trades", tooltip="Allow Short/Sell trades", group=groupSignal)
 
-// External signal inputs (connect to other indicator's plots)
+// External signal inputs (for "External" mode)
 extLongSignal = input.source(close, "Long Signal Source", tooltip="Connect to indicator's Long/Buy signal plot (1 = signal, 0 = no signal)", group=groupSignal)
 extShortSignal = input.source(close, "Short Signal Source", tooltip="Connect to indicator's Short/Sell signal plot (1 = signal, 0 = no signal)", group=groupSignal)
 extLongThreshold = input.float(0.5, "Long Signal Threshold", tooltip="Signal triggers when source crosses above this value", group=groupSignal)
@@ -23,6 +23,52 @@ extShortThreshold = input.float(0.5, "Short Signal Threshold", tooltip="Signal t
 entryPriceSource = input.string("Custom Source", "Entry Price Type", options=["Close", "Open", "High", "Low", "HL2", "HLC3", "OHLC4", "Custom Source"], tooltip="Price used for entry", group=groupSignal)
 extLongEntryPrice = input.source(close, "Long Entry Price Source", tooltip="Connect to RZ S1 (Support) for Long entries", group=groupSignal)
 extShortEntryPrice = input.source(close, "Short Entry Price Source", tooltip="Connect to RZ R1 (Resistance) for Short entries", group=groupSignal)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-STEP LONG SIGNAL
+// ─────────────────────────────────────────────────────────────────────────────
+groupLongSteps = "LONG SIGNAL STEPS"
+// Step 1 - READY condition (e.g., Low crosses under S3)
+longStep1Price = input.string("Low", "Step 1 Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
+longStep1Condition = input.string("Crossing Under", "Step 1 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longStep1Level = input.source(close, "Step 1 Level", tooltip="Connect to RZ S3 (Support 3)", group=groupLongSteps)
+
+// Step 2 - TRIGGERED condition (e.g., High crosses over S1)
+longStep2Price = input.string("High", "Step 2 Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
+longStep2Condition = input.string("Crossing Over", "Step 2 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longStep2Level = input.source(close, "Step 2 Level", tooltip="Connect to RZ S1 (Support 1)", group=groupLongSteps)
+
+// Step 3 - Optional additional condition
+longUseStep3 = input.bool(false, "Use Step 3", group=groupLongSteps)
+longStep3Price = input.string("Close", "Step 3 Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
+longStep3Condition = input.string("Greater Than", "Step 3 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longStep3Level = input.source(close, "Step 3 Level", tooltip="Optional extra condition", group=groupLongSteps)
+
+// Step interval
+longMaxStepInterval = input.int(10, "Max Step Interval", minval=1, maxval=100, tooltip="Maximum bars between Step 1 and Step 2", group=groupLongSteps)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-STEP SHORT SIGNAL
+// ─────────────────────────────────────────────────────────────────────────────
+groupShortSteps = "SHORT SIGNAL STEPS"
+// Step 1 - READY condition (e.g., High crosses over R3)
+shortStep1Price = input.string("High", "Step 1 Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
+shortStep1Condition = input.string("Crossing Over", "Step 1 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortStep1Level = input.source(close, "Step 1 Level", tooltip="Connect to RZ R3 (Resistance 3)", group=groupShortSteps)
+
+// Step 2 - TRIGGERED condition (e.g., Low crosses under R1)
+shortStep2Price = input.string("Low", "Step 2 Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
+shortStep2Condition = input.string("Crossing Under", "Step 2 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortStep2Level = input.source(close, "Step 2 Level", tooltip="Connect to RZ R1 (Resistance 1)", group=groupShortSteps)
+
+// Step 3 - Optional additional condition
+shortUseStep3 = input.bool(false, "Use Step 3", group=groupShortSteps)
+shortStep3Price = input.string("Close", "Step 3 Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
+shortStep3Condition = input.string("Less Than", "Step 3 Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortStep3Level = input.source(close, "Step 3 Level", tooltip="Optional extra condition", group=groupShortSteps)
+
+// Step interval
+shortMaxStepInterval = input.int(10, "Max Step Interval", minval=1, maxval=100, tooltip="Maximum bars between Step 1 and Step 2", group=groupShortSteps)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TP/SL SETTINGS
@@ -164,17 +210,91 @@ getSLDistance() =>
         "Custom Source" => math.abs(extSlSource - close)
         => atr * slAtrMult
 
-// Signal Detection (respects Enable Long/Short settings)
-longSignal = enableLong and (signalSource == "External" ? ta.crossover(extLongSignal, extLongThreshold) : false)
-shortSignal = enableShort and (signalSource == "External" ? ta.crossover(extShortSignal, extShortThreshold) : false)
+// =============================================================================
+// MULTI-STEP SIGNAL LOGIC
+// =============================================================================
+
+// Helper: Get price based on selection
+getStepPrice(priceType) =>
+    switch priceType
+        "Close" => close
+        "Open" => open
+        "High" => high
+        "Low" => low
+        => close
+
+// Helper: Check step condition
+checkCondition(priceType, condition, level) =>
+    price = getStepPrice(priceType)
+    switch condition
+        "Crossing Under" => ta.crossunder(price, level)
+        "Crossing Over" => ta.crossover(price, level)
+        "Less Than" => price < level
+        "Greater Than" => price > level
+        => false
+
+// Multi-step state tracking
+var bool longStep1Active = false      // Step 1 has been triggered (READY)
+var int longStep1Bar = na             // Bar where Step 1 triggered
+var bool shortStep1Active = false
+var int shortStep1Bar = na
+
+// Check Long Step conditions
+longStep1Triggered = checkCondition(longStep1Price, longStep1Condition, longStep1Level)
+longStep2Triggered = checkCondition(longStep2Price, longStep2Condition, longStep2Level)
+longStep3Triggered = longUseStep3 ? checkCondition(longStep3Price, longStep3Condition, longStep3Level) : true
+
+// Check Short Step conditions
+shortStep1Triggered = checkCondition(shortStep1Price, shortStep1Condition, shortStep1Level)
+shortStep2Triggered = checkCondition(shortStep2Price, shortStep2Condition, shortStep2Level)
+shortStep3Triggered = shortUseStep3 ? checkCondition(shortStep3Price, shortStep3Condition, shortStep3Level) : true
+
+// Long Step State Machine
+if longStep1Triggered and not longStep1Active
+    longStep1Active := true
+    longStep1Bar := bar_index
+
+// Check if step interval expired
+if longStep1Active and (bar_index - longStep1Bar) > longMaxStepInterval
+    longStep1Active := false
+    longStep1Bar := na
+
+// Short Step State Machine
+if shortStep1Triggered and not shortStep1Active
+    shortStep1Active := true
+    shortStep1Bar := bar_index
+
+if shortStep1Active and (bar_index - shortStep1Bar) > shortMaxStepInterval
+    shortStep1Active := false
+    shortStep1Bar := na
+
+// Signal Detection
+var bool longSignal = false
+var bool shortSignal = false
+
+if signalSource == "External"
+    longSignal := enableLong and ta.crossover(extLongSignal, extLongThreshold)
+    shortSignal := enableShort and ta.crossover(extShortSignal, extShortThreshold)
+else  // Multi-Step mode
+    // Long signal: Step 1 active + Step 2 triggered (+ Step 3 if enabled)
+    longSignal := enableLong and longStep1Active and longStep2Triggered and longStep3Triggered
+    shortSignal := enableShort and shortStep1Active and shortStep2Triggered and shortStep3Triggered
+
+    // Reset step state after signal
+    if longSignal
+        longStep1Active := false
+        longStep1Bar := na
+    if shortSignal
+        shortStep1Active := false
+        shortStep1Bar := na
 
 // =============================================================================
 // READY STATE TRACKING (for Webhook System)
 // =============================================================================
 
-// Ready state detection (when in Zone 3 = oversold/overbought)
-longReady = extLongReadySignal > 0.5   // In oversold zone
-shortReady = extShortReadySignal > 0.5  // In overbought zone
+// Ready state = Step 1 is active (waiting for Step 2)
+longReady = signalSource == "Multi-Step" ? longStep1Active : extLongReadySignal > 0.5
+shortReady = signalSource == "Multi-Step" ? shortStep1Active : extShortReadySignal > 0.5
 
 // Track ready state changes
 var bool wasLongReady = false
