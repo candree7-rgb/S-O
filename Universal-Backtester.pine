@@ -259,49 +259,64 @@ shortC2Met = shortC2Enable ? checkCondition(shortC2Price, shortC2Condition, shor
 shortC3Met = shortC3Enable ? checkCondition(shortC3Price, shortC3Condition, shortC3Level) : true
 shortC4Met = shortC4Enable ? checkCondition(shortC4Price, shortC4Condition, shortC4Level) : true
 
-// Group Long conditions by Step number
-// Step 1 = READY (all Step-1 conditions must be met simultaneously)
-longStep1Conditions = (not longC1Enable or longC1Step != 1 or longC1Met) and
-                      (not longC2Enable or longC2Step != 1 or longC2Met) and
-                      (not longC3Enable or longC3Step != 1 or longC3Met) and
-                      (not longC4Enable or longC4Step != 1 or longC4Met)
-// At least one Step-1 condition must be enabled and have a crossing condition for trigger
-longHasStep1Cross = (longC1Enable and longC1Step == 1 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")) or
-                    (longC2Enable and longC2Step == 1 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")) or
-                    (longC3Enable and longC3Step == 1 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")) or
-                    (longC4Enable and longC4Step == 1 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over"))
+// Long Step 1 conditions (READY) - each condition check
+longC1Step1Ok = not longC1Enable or longC1Step != 1 or longC1Met
+longC2Step1Ok = not longC2Enable or longC2Step != 1 or longC2Met
+longC3Step1Ok = not longC3Enable or longC3Step != 1 or longC3Met
+longC4Step1Ok = not longC4Enable or longC4Step != 1 or longC4Met
+longStep1Conditions = longC1Step1Ok and longC2Step1Ok and longC3Step1Ok and longC4Step1Ok
+
+// Long Step 1 must have at least one crossing condition
+longC1IsCross1 = longC1Enable and longC1Step == 1 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")
+longC2IsCross1 = longC2Enable and longC2Step == 1 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")
+longC3IsCross1 = longC3Enable and longC3Step == 1 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")
+longC4IsCross1 = longC4Enable and longC4Step == 1 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over")
+longHasStep1Cross = longC1IsCross1 or longC2IsCross1 or longC3IsCross1 or longC4IsCross1
 longStep1AllMet = longStep1Conditions and longHasStep1Cross
 
-// Step 2 = TRIGGERED (all Step-2 conditions must be met)
-longStep2Conditions = (not longC1Enable or longC1Step != 2 or longC1Met) and
-                      (not longC2Enable or longC2Step != 2 or longC2Met) and
-                      (not longC3Enable or longC3Step != 2 or longC3Met) and
-                      (not longC4Enable or longC4Step != 2 or longC4Met)
-longHasStep2Cross = (longC1Enable and longC1Step == 2 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")) or
-                    (longC2Enable and longC2Step == 2 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")) or
-                    (longC3Enable and longC3Step == 2 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")) or
-                    (longC4Enable and longC4Step == 2 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over"))
+// Long Step 2 conditions (TRIGGERED) - each condition check
+longC1Step2Ok = not longC1Enable or longC1Step != 2 or longC1Met
+longC2Step2Ok = not longC2Enable or longC2Step != 2 or longC2Met
+longC3Step2Ok = not longC3Enable or longC3Step != 2 or longC3Met
+longC4Step2Ok = not longC4Enable or longC4Step != 2 or longC4Met
+longStep2Conditions = longC1Step2Ok and longC2Step2Ok and longC3Step2Ok and longC4Step2Ok
+
+// Long Step 2 must have at least one crossing condition
+longC1IsCross2 = longC1Enable and longC1Step == 2 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")
+longC2IsCross2 = longC2Enable and longC2Step == 2 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")
+longC3IsCross2 = longC3Enable and longC3Step == 2 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")
+longC4IsCross2 = longC4Enable and longC4Step == 2 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over")
+longHasStep2Cross = longC1IsCross2 or longC2IsCross2 or longC3IsCross2 or longC4IsCross2
 longStep2AllMet = longStep2Conditions and longHasStep2Cross
 
-// Group Short conditions by Step number
-shortStep1Conditions = (not shortC1Enable or shortC1Step != 1 or shortC1Met) and
-                       (not shortC2Enable or shortC2Step != 1 or shortC2Met) and
-                       (not shortC3Enable or shortC3Step != 1 or shortC3Met) and
-                       (not shortC4Enable or shortC4Step != 1 or shortC4Met)
-shortHasStep1Cross = (shortC1Enable and shortC1Step == 1 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")) or
-                     (shortC2Enable and shortC2Step == 1 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")) or
-                     (shortC3Enable and shortC3Step == 1 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")) or
-                     (shortC4Enable and shortC4Step == 1 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over"))
+// Short Step 1 conditions (READY) - each condition check
+shortC1Step1Ok = not shortC1Enable or shortC1Step != 1 or shortC1Met
+shortC2Step1Ok = not shortC2Enable or shortC2Step != 1 or shortC2Met
+shortC3Step1Ok = not shortC3Enable or shortC3Step != 1 or shortC3Met
+shortC4Step1Ok = not shortC4Enable or shortC4Step != 1 or shortC4Met
+shortStep1Conditions = shortC1Step1Ok and shortC2Step1Ok and shortC3Step1Ok and shortC4Step1Ok
+
+// Short Step 1 must have at least one crossing condition
+shortC1IsCross1 = shortC1Enable and shortC1Step == 1 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")
+shortC2IsCross1 = shortC2Enable and shortC2Step == 1 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")
+shortC3IsCross1 = shortC3Enable and shortC3Step == 1 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")
+shortC4IsCross1 = shortC4Enable and shortC4Step == 1 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over")
+shortHasStep1Cross = shortC1IsCross1 or shortC2IsCross1 or shortC3IsCross1 or shortC4IsCross1
 shortStep1AllMet = shortStep1Conditions and shortHasStep1Cross
 
-shortStep2Conditions = (not shortC1Enable or shortC1Step != 2 or shortC1Met) and
-                       (not shortC2Enable or shortC2Step != 2 or shortC2Met) and
-                       (not shortC3Enable or shortC3Step != 2 or shortC3Met) and
-                       (not shortC4Enable or shortC4Step != 2 or shortC4Met)
-shortHasStep2Cross = (shortC1Enable and shortC1Step == 2 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")) or
-                     (shortC2Enable and shortC2Step == 2 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")) or
-                     (shortC3Enable and shortC3Step == 2 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")) or
-                     (shortC4Enable and shortC4Step == 2 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over"))
+// Short Step 2 conditions (TRIGGERED) - each condition check
+shortC1Step2Ok = not shortC1Enable or shortC1Step != 2 or shortC1Met
+shortC2Step2Ok = not shortC2Enable or shortC2Step != 2 or shortC2Met
+shortC3Step2Ok = not shortC3Enable or shortC3Step != 2 or shortC3Met
+shortC4Step2Ok = not shortC4Enable or shortC4Step != 2 or shortC4Met
+shortStep2Conditions = shortC1Step2Ok and shortC2Step2Ok and shortC3Step2Ok and shortC4Step2Ok
+
+// Short Step 2 must have at least one crossing condition
+shortC1IsCross2 = shortC1Enable and shortC1Step == 2 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")
+shortC2IsCross2 = shortC2Enable and shortC2Step == 2 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")
+shortC3IsCross2 = shortC3Enable and shortC3Step == 2 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")
+shortC4IsCross2 = shortC4Enable and shortC4Step == 2 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over")
+shortHasStep2Cross = shortC1IsCross2 or shortC2IsCross2 or shortC3IsCross2 or shortC4IsCross2
 shortStep2AllMet = shortStep2Conditions and shortHasStep2Cross
 
 // Multi-step state tracking
