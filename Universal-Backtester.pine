@@ -31,31 +31,43 @@ groupLongSteps = "LONG CONDITIONS"
 
 // Condition 1 (e.g., Low crossing under S3 = READY)
 longC1Enable = input.bool(true, "─── Condition 1 ───", group=groupLongSteps)
-longC1Price = input.string("Low", "  Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
-longC1Condition = input.string("Crossing Under", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
-longC1Level = input.source(close, "  Level", tooltip="Connect to RZ S3", group=groupLongSteps)
-longC1Step = input.int(1, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupLongSteps)
+longC1PriceType = input.string("Low", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupLongSteps)
+longC1PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupLongSteps)
+longC1Condition = input.string("Crossing Under", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longC1LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
+longC1Level = input.source(close, "  Level Source", tooltip="Connect to RZ S3", group=groupLongSteps)
+longC1LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupLongSteps)
+longC1Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 2 (e.g., High crossing over S1 = TRIGGERED)
 longC2Enable = input.bool(true, "─── Condition 2 ───", group=groupLongSteps)
-longC2Price = input.string("High", "  Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
-longC2Condition = input.string("Crossing Over", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
-longC2Level = input.source(close, "  Level", tooltip="Connect to RZ S1", group=groupLongSteps)
-longC2Step = input.int(2, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupLongSteps)
+longC2PriceType = input.string("High", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupLongSteps)
+longC2PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupLongSteps)
+longC2Condition = input.string("Crossing Over", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longC2LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
+longC2Level = input.source(close, "  Level Source", tooltip="Connect to RZ S1", group=groupLongSteps)
+longC2LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupLongSteps)
+longC2Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 3 (optional, e.g., RSI < 30)
 longC3Enable = input.bool(false, "─── Condition 3 ───", group=groupLongSteps)
-longC3Price = input.string("Close", "  Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
-longC3Condition = input.string("Less Than", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
-longC3Level = input.source(close, "  Level", tooltip="Optional condition", group=groupLongSteps)
-longC3Step = input.int(1, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupLongSteps)
+longC3PriceType = input.string("Custom", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupLongSteps)
+longC3PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupLongSteps)
+longC3Condition = input.string("Less Than", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longC3LevelType = input.string("Value", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
+longC3Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupLongSteps)
+longC3LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupLongSteps)
+longC3Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 4 (optional)
 longC4Enable = input.bool(false, "─── Condition 4 ───", group=groupLongSteps)
-longC4Price = input.string("Close", "  Price", options=["Close", "Open", "High", "Low"], group=groupLongSteps)
-longC4Condition = input.string("Greater Than", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
-longC4Level = input.source(close, "  Level", tooltip="Optional condition", group=groupLongSteps)
-longC4Step = input.int(2, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupLongSteps)
+longC4PriceType = input.string("Custom", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupLongSteps)
+longC4PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupLongSteps)
+longC4Condition = input.string("Greater Than", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupLongSteps)
+longC4LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
+longC4Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupLongSteps)
+longC4LevelValue = input.float(50.0, "  Level Value", tooltip="Numeric value (e.g., 50 for RSI)", group=groupLongSteps)
+longC4Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Step settings
 longMaxStepInterval = input.int(10, "Max Step Interval", minval=1, maxval=100, tooltip="Maximum bars between Step 1 and Step 2", group=groupLongSteps)
@@ -67,31 +79,43 @@ groupShortSteps = "SHORT CONDITIONS"
 
 // Condition 1 (e.g., High crossing over R3 = READY)
 shortC1Enable = input.bool(true, "─── Condition 1 ───", group=groupShortSteps)
-shortC1Price = input.string("High", "  Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
-shortC1Condition = input.string("Crossing Over", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
-shortC1Level = input.source(close, "  Level", tooltip="Connect to RZ R3", group=groupShortSteps)
-shortC1Step = input.int(1, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupShortSteps)
+shortC1PriceType = input.string("High", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupShortSteps)
+shortC1PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupShortSteps)
+shortC1Condition = input.string("Crossing Over", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortC1LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
+shortC1Level = input.source(close, "  Level Source", tooltip="Connect to RZ R3", group=groupShortSteps)
+shortC1LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupShortSteps)
+shortC1Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 2 (e.g., Low crossing under R1 = TRIGGERED)
 shortC2Enable = input.bool(true, "─── Condition 2 ───", group=groupShortSteps)
-shortC2Price = input.string("Low", "  Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
-shortC2Condition = input.string("Crossing Under", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
-shortC2Level = input.source(close, "  Level", tooltip="Connect to RZ R1", group=groupShortSteps)
-shortC2Step = input.int(2, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupShortSteps)
+shortC2PriceType = input.string("Low", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupShortSteps)
+shortC2PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupShortSteps)
+shortC2Condition = input.string("Crossing Under", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortC2LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
+shortC2Level = input.source(close, "  Level Source", tooltip="Connect to RZ R1", group=groupShortSteps)
+shortC2LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupShortSteps)
+shortC2Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 3 (optional)
 shortC3Enable = input.bool(false, "─── Condition 3 ───", group=groupShortSteps)
-shortC3Price = input.string("Close", "  Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
-shortC3Condition = input.string("Greater Than", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
-shortC3Level = input.source(close, "  Level", tooltip="Optional condition", group=groupShortSteps)
-shortC3Step = input.int(1, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupShortSteps)
+shortC3PriceType = input.string("Custom", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupShortSteps)
+shortC3PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupShortSteps)
+shortC3Condition = input.string("Greater Than", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortC3LevelType = input.string("Value", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
+shortC3Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupShortSteps)
+shortC3LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupShortSteps)
+shortC3Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 4 (optional)
 shortC4Enable = input.bool(false, "─── Condition 4 ───", group=groupShortSteps)
-shortC4Price = input.string("Close", "  Price", options=["Close", "Open", "High", "Low"], group=groupShortSteps)
-shortC4Condition = input.string("Less Than", "  Condition", options=["Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
-shortC4Level = input.source(close, "  Level", tooltip="Optional condition", group=groupShortSteps)
-shortC4Step = input.int(2, "  Step", minval=1, maxval=2, tooltip="1=READY, 2=TRIGGERED", group=groupShortSteps)
+shortC4PriceType = input.string("Custom", "  Price Type", options=["Close", "Open", "High", "Low", "Custom"], group=groupShortSteps)
+shortC4PriceCustom = input.source(close, "  Price Custom", tooltip="Custom source (e.g., RSI)", group=groupShortSteps)
+shortC4Condition = input.string("Less Than", "  Condition", options=["Crossing", "Crossing Under", "Crossing Over", "Less Than", "Greater Than"], group=groupShortSteps)
+shortC4LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
+shortC4Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupShortSteps)
+shortC4LevelValue = input.float(50.0, "  Level Value", tooltip="Numeric value (e.g., 50 for RSI)", group=groupShortSteps)
+shortC4Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Step settings
 shortMaxStepInterval = input.int(10, "Max Step Interval", minval=1, maxval=100, tooltip="Maximum bars between Step 1 and Step 2", group=groupShortSteps)
@@ -228,36 +252,47 @@ getSLDistance() =>
 // MULTI-STEP SIGNAL LOGIC
 // =============================================================================
 
-// Helper: Get price based on selection
-getStepPrice(priceType) =>
+// Helper: Get price based on selection (with custom source support)
+getStepPrice(priceType, customSource) =>
     switch priceType
         "Close" => close
         "Open" => open
         "High" => high
         "Low" => low
+        "Custom" => customSource
         => close
 
-// Helper: Check step condition
-checkCondition(priceType, condition, level) =>
-    price = getStepPrice(priceType)
+// Helper: Get level based on type (source or fixed value)
+getStepLevel(levelType, levelSource, levelValue) =>
+    levelType == "Value" ? levelValue : levelSource
+
+// Helper: Check step condition (with "Crossing" = either direction)
+checkConditionFull(priceType, customSource, condition, levelType, levelSource, levelValue) =>
+    price = getStepPrice(priceType, customSource)
+    level = getStepLevel(levelType, levelSource, levelValue)
     switch condition
+        "Crossing" => ta.crossunder(price, level) or ta.crossover(price, level)
         "Crossing Under" => ta.crossunder(price, level)
         "Crossing Over" => ta.crossover(price, level)
         "Less Than" => price < level
         "Greater Than" => price > level
         => false
 
+// Helper: Check if condition is a crossing type
+isCrossingCondition(condition) =>
+    condition == "Crossing" or condition == "Crossing Under" or condition == "Crossing Over"
+
 // Check each Long condition
-longC1Met = longC1Enable ? checkCondition(longC1Price, longC1Condition, longC1Level) : true
-longC2Met = longC2Enable ? checkCondition(longC2Price, longC2Condition, longC2Level) : true
-longC3Met = longC3Enable ? checkCondition(longC3Price, longC3Condition, longC3Level) : true
-longC4Met = longC4Enable ? checkCondition(longC4Price, longC4Condition, longC4Level) : true
+longC1Met = longC1Enable ? checkConditionFull(longC1PriceType, longC1PriceCustom, longC1Condition, longC1LevelType, longC1Level, longC1LevelValue) : true
+longC2Met = longC2Enable ? checkConditionFull(longC2PriceType, longC2PriceCustom, longC2Condition, longC2LevelType, longC2Level, longC2LevelValue) : true
+longC3Met = longC3Enable ? checkConditionFull(longC3PriceType, longC3PriceCustom, longC3Condition, longC3LevelType, longC3Level, longC3LevelValue) : true
+longC4Met = longC4Enable ? checkConditionFull(longC4PriceType, longC4PriceCustom, longC4Condition, longC4LevelType, longC4Level, longC4LevelValue) : true
 
 // Check each Short condition
-shortC1Met = shortC1Enable ? checkCondition(shortC1Price, shortC1Condition, shortC1Level) : true
-shortC2Met = shortC2Enable ? checkCondition(shortC2Price, shortC2Condition, shortC2Level) : true
-shortC3Met = shortC3Enable ? checkCondition(shortC3Price, shortC3Condition, shortC3Level) : true
-shortC4Met = shortC4Enable ? checkCondition(shortC4Price, shortC4Condition, shortC4Level) : true
+shortC1Met = shortC1Enable ? checkConditionFull(shortC1PriceType, shortC1PriceCustom, shortC1Condition, shortC1LevelType, shortC1Level, shortC1LevelValue) : true
+shortC2Met = shortC2Enable ? checkConditionFull(shortC2PriceType, shortC2PriceCustom, shortC2Condition, shortC2LevelType, shortC2Level, shortC2LevelValue) : true
+shortC3Met = shortC3Enable ? checkConditionFull(shortC3PriceType, shortC3PriceCustom, shortC3Condition, shortC3LevelType, shortC3Level, shortC3LevelValue) : true
+shortC4Met = shortC4Enable ? checkConditionFull(shortC4PriceType, shortC4PriceCustom, shortC4Condition, shortC4LevelType, shortC4Level, shortC4LevelValue) : true
 
 // Long Step 1 conditions (READY) - each condition check
 longC1Step1Ok = not longC1Enable or longC1Step != 1 or longC1Met
@@ -267,10 +302,10 @@ longC4Step1Ok = not longC4Enable or longC4Step != 1 or longC4Met
 longStep1Conditions = longC1Step1Ok and longC2Step1Ok and longC3Step1Ok and longC4Step1Ok
 
 // Long Step 1 must have at least one crossing condition
-longC1IsCross1 = longC1Enable and longC1Step == 1 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")
-longC2IsCross1 = longC2Enable and longC2Step == 1 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")
-longC3IsCross1 = longC3Enable and longC3Step == 1 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")
-longC4IsCross1 = longC4Enable and longC4Step == 1 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over")
+longC1IsCross1 = longC1Enable and longC1Step == 1 and isCrossingCondition(longC1Condition)
+longC2IsCross1 = longC2Enable and longC2Step == 1 and isCrossingCondition(longC2Condition)
+longC3IsCross1 = longC3Enable and longC3Step == 1 and isCrossingCondition(longC3Condition)
+longC4IsCross1 = longC4Enable and longC4Step == 1 and isCrossingCondition(longC4Condition)
 longHasStep1Cross = longC1IsCross1 or longC2IsCross1 or longC3IsCross1 or longC4IsCross1
 longStep1AllMet = longStep1Conditions and longHasStep1Cross
 
@@ -282,12 +317,19 @@ longC4Step2Ok = not longC4Enable or longC4Step != 2 or longC4Met
 longStep2Conditions = longC1Step2Ok and longC2Step2Ok and longC3Step2Ok and longC4Step2Ok
 
 // Long Step 2 must have at least one crossing condition
-longC1IsCross2 = longC1Enable and longC1Step == 2 and (longC1Condition == "Crossing Under" or longC1Condition == "Crossing Over")
-longC2IsCross2 = longC2Enable and longC2Step == 2 and (longC2Condition == "Crossing Under" or longC2Condition == "Crossing Over")
-longC3IsCross2 = longC3Enable and longC3Step == 2 and (longC3Condition == "Crossing Under" or longC3Condition == "Crossing Over")
-longC4IsCross2 = longC4Enable and longC4Step == 2 and (longC4Condition == "Crossing Under" or longC4Condition == "Crossing Over")
+longC1IsCross2 = longC1Enable and longC1Step == 2 and isCrossingCondition(longC1Condition)
+longC2IsCross2 = longC2Enable and longC2Step == 2 and isCrossingCondition(longC2Condition)
+longC3IsCross2 = longC3Enable and longC3Step == 2 and isCrossingCondition(longC3Condition)
+longC4IsCross2 = longC4Enable and longC4Step == 2 and isCrossingCondition(longC4Condition)
 longHasStep2Cross = longC1IsCross2 or longC2IsCross2 or longC3IsCross2 or longC4IsCross2
 longStep2AllMet = longStep2Conditions and longHasStep2Cross
+
+// Long Step 3 conditions (FILTER - must be met continuously while Step 1 active)
+longC1Step3Ok = not longC1Enable or longC1Step != 3 or longC1Met
+longC2Step3Ok = not longC2Enable or longC2Step != 3 or longC2Met
+longC3Step3Ok = not longC3Enable or longC3Step != 3 or longC3Met
+longC4Step3Ok = not longC4Enable or longC4Step != 3 or longC4Met
+longStep3AllMet = longC1Step3Ok and longC2Step3Ok and longC3Step3Ok and longC4Step3Ok
 
 // Short Step 1 conditions (READY) - each condition check
 shortC1Step1Ok = not shortC1Enable or shortC1Step != 1 or shortC1Met
@@ -297,10 +339,10 @@ shortC4Step1Ok = not shortC4Enable or shortC4Step != 1 or shortC4Met
 shortStep1Conditions = shortC1Step1Ok and shortC2Step1Ok and shortC3Step1Ok and shortC4Step1Ok
 
 // Short Step 1 must have at least one crossing condition
-shortC1IsCross1 = shortC1Enable and shortC1Step == 1 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")
-shortC2IsCross1 = shortC2Enable and shortC2Step == 1 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")
-shortC3IsCross1 = shortC3Enable and shortC3Step == 1 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")
-shortC4IsCross1 = shortC4Enable and shortC4Step == 1 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over")
+shortC1IsCross1 = shortC1Enable and shortC1Step == 1 and isCrossingCondition(shortC1Condition)
+shortC2IsCross1 = shortC2Enable and shortC2Step == 1 and isCrossingCondition(shortC2Condition)
+shortC3IsCross1 = shortC3Enable and shortC3Step == 1 and isCrossingCondition(shortC3Condition)
+shortC4IsCross1 = shortC4Enable and shortC4Step == 1 and isCrossingCondition(shortC4Condition)
 shortHasStep1Cross = shortC1IsCross1 or shortC2IsCross1 or shortC3IsCross1 or shortC4IsCross1
 shortStep1AllMet = shortStep1Conditions and shortHasStep1Cross
 
@@ -312,12 +354,19 @@ shortC4Step2Ok = not shortC4Enable or shortC4Step != 2 or shortC4Met
 shortStep2Conditions = shortC1Step2Ok and shortC2Step2Ok and shortC3Step2Ok and shortC4Step2Ok
 
 // Short Step 2 must have at least one crossing condition
-shortC1IsCross2 = shortC1Enable and shortC1Step == 2 and (shortC1Condition == "Crossing Under" or shortC1Condition == "Crossing Over")
-shortC2IsCross2 = shortC2Enable and shortC2Step == 2 and (shortC2Condition == "Crossing Under" or shortC2Condition == "Crossing Over")
-shortC3IsCross2 = shortC3Enable and shortC3Step == 2 and (shortC3Condition == "Crossing Under" or shortC3Condition == "Crossing Over")
-shortC4IsCross2 = shortC4Enable and shortC4Step == 2 and (shortC4Condition == "Crossing Under" or shortC4Condition == "Crossing Over")
+shortC1IsCross2 = shortC1Enable and shortC1Step == 2 and isCrossingCondition(shortC1Condition)
+shortC2IsCross2 = shortC2Enable and shortC2Step == 2 and isCrossingCondition(shortC2Condition)
+shortC3IsCross2 = shortC3Enable and shortC3Step == 2 and isCrossingCondition(shortC3Condition)
+shortC4IsCross2 = shortC4Enable and shortC4Step == 2 and isCrossingCondition(shortC4Condition)
 shortHasStep2Cross = shortC1IsCross2 or shortC2IsCross2 or shortC3IsCross2 or shortC4IsCross2
 shortStep2AllMet = shortStep2Conditions and shortHasStep2Cross
+
+// Short Step 3 conditions (FILTER - must be met continuously while Step 1 active)
+shortC1Step3Ok = not shortC1Enable or shortC1Step != 3 or shortC1Met
+shortC2Step3Ok = not shortC2Enable or shortC2Step != 3 or shortC2Met
+shortC3Step3Ok = not shortC3Enable or shortC3Step != 3 or shortC3Met
+shortC4Step3Ok = not shortC4Enable or shortC4Step != 3 or shortC4Met
+shortStep3AllMet = shortC1Step3Ok and shortC2Step3Ok and shortC3Step3Ok and shortC4Step3Ok
 
 // Multi-step state tracking
 var bool longStep1Active = false      // Step 1 has been triggered (READY)
@@ -330,8 +379,8 @@ if longStep1AllMet and not longStep1Active
     longStep1Active := true
     longStep1Bar := bar_index
 
-// Check if step interval expired
-if longStep1Active and (bar_index - longStep1Bar) > longMaxStepInterval
+// Check if step interval expired OR Step 3 filter fails
+if longStep1Active and ((bar_index - longStep1Bar) > longMaxStepInterval or not longStep3AllMet)
     longStep1Active := false
     longStep1Bar := na
 
@@ -340,7 +389,8 @@ if shortStep1AllMet and not shortStep1Active
     shortStep1Active := true
     shortStep1Bar := bar_index
 
-if shortStep1Active and (bar_index - shortStep1Bar) > shortMaxStepInterval
+// Check if step interval expired OR Step 3 filter fails
+if shortStep1Active and ((bar_index - shortStep1Bar) > shortMaxStepInterval or not shortStep3AllMet)
     shortStep1Active := false
     shortStep1Bar := na
 
@@ -352,9 +402,9 @@ if signalSource == "External"
     longSignal := enableLong and ta.crossover(extLongSignal, extLongThreshold)
     shortSignal := enableShort and ta.crossover(extShortSignal, extShortThreshold)
 else  // Multi-Step mode
-    // Long signal: Step 1 active + Step 2 all conditions met
-    longSignal := enableLong and longStep1Active and longStep2AllMet
-    shortSignal := enableShort and shortStep1Active and shortStep2AllMet
+    // Long signal: Step 1 active + Step 2 met + Step 3 filter met + NOT on same candle
+    longSignal := enableLong and longStep1Active and bar_index > longStep1Bar and longStep2AllMet and longStep3AllMet
+    shortSignal := enableShort and shortStep1Active and bar_index > shortStep1Bar and shortStep2AllMet and shortStep3AllMet
 
     // Reset step state after signal
     if longSignal
