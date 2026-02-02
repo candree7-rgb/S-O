@@ -72,9 +72,13 @@ fixedFeePerTrade = input.float(0, "Fixed Fee per Trade", minval=0, tooltip="Fixe
 // ─────────────────────────────────────────────────────────────────────────────
 groupPosition = "POSITION SETTINGS"
 initialCapital = input.float(10000, "Initial Capital", minval=100, group=groupPosition)
-positionSizing = input.string("Percent", "Position Sizing", options=["Percent", "Fixed"], group=groupPosition)
-positionPercent = input.float(100, "Position Size %", minval=1, maxval=100, tooltip="Percent of capital per trade", group=groupPosition)
+leverage = input.float(20, "Leverage", minval=1, maxval=125, step=1, tooltip="Trading leverage (e.g., 20x)", group=groupPosition)
+useCompounding = input.bool(true, "Use Compounding", tooltip="Position size based on current equity (true) or initial capital (false)", group=groupPosition)
+positionSizing = input.string("Percent", "Position Sizing", options=["Percent", "Fixed", "Risk-Based"], group=groupPosition)
+positionPercent = input.float(5, "Position Size %", minval=0.1, maxval=100, step=0.1, tooltip="Percent of equity per trade (before risk adjustment)", group=groupPosition)
 fixedPositionSize = input.float(1000, "Fixed Position Size", minval=1, group=groupPosition)
+maxRiskPercent = input.float(2, "Max Risk per Trade %", minval=0.1, maxval=50, step=0.1, tooltip="Maximum equity loss per trade. Position size reduced if SL would exceed this.", group=groupPosition)
+useMaxRiskCap = input.bool(true, "Enable Max Risk Cap", tooltip="Automatically reduce position if SL exceeds max risk", group=groupPosition)
 allowPyramiding = input.bool(false, "Allow Pyramiding", tooltip="Allow multiple positions at once", group=groupPosition)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -246,12 +250,40 @@ var int maxConsecutiveWins = 0
 var int maxConsecutiveLosses = 0
 var int currentStreak = 0
 
-// Position Size Calculation
-getPositionSize() =>
+// Position Size Calculation with Leverage and Risk Management
+// slDistancePercent = how far SL is from entry in percent (e.g., 0.65 for 0.65%)
+getPositionSize(slDistancePercent) =>
+    // Base equity (compounding or not)
+    equity = useCompounding ? currentCapital : initialCapital
+
+    // Calculate base position size
+    float basePosition = 0.0
     if positionSizing == "Percent"
-        currentCapital * (positionPercent / 100)
-    else
-        fixedPositionSize
+        basePosition := equity * (positionPercent / 100)
+    else if positionSizing == "Fixed"
+        basePosition := fixedPositionSize
+    else  // Risk-Based: position sized so that SL = maxRiskPercent loss
+        // Position = (Equity × MaxRisk%) / (SL% × Leverage)
+        if slDistancePercent > 0
+            basePosition := (equity * (maxRiskPercent / 100)) / (slDistancePercent / 100 * leverage)
+        else
+            basePosition := equity * (positionPercent / 100)
+
+    // Apply Max Risk Cap if enabled (for Percent and Fixed modes)
+    float finalPosition = basePosition
+    if useMaxRiskCap and positionSizing != "Risk-Based" and slDistancePercent > 0
+        // Calculate what the loss would be with base position
+        // Loss = Position × SL% × Leverage
+        potentialLoss = basePosition * (slDistancePercent / 100) * leverage
+        maxAllowedLoss = equity * (maxRiskPercent / 100)
+
+        // If potential loss exceeds max allowed, reduce position
+        if potentialLoss > maxAllowedLoss
+            // Solve for position: maxAllowedLoss = Position × SL% × Leverage
+            // Position = maxAllowedLoss / (SL% × Leverage)
+            finalPosition := maxAllowedLoss / (slDistancePercent / 100 * leverage)
+
+    finalPosition
 
 // Fee Calculation
 calculateFees(tradeValue) =>
@@ -303,6 +335,10 @@ checkTPSLHit(isLong, tp, sl, isSignalBar) =>
 // TRADE EXECUTION LOGIC
 // =============================================================================
 
+// Additional trade tracking variables
+var float tradePositionSize = na
+var float tradeSLDistancePercent = na
+
 // Entry Logic
 if longSignal and not inLongTrade and (allowPyramiding or not inShortTrade)
     if inShortTrade
@@ -316,6 +352,10 @@ if longSignal and not inLongTrade and (allowPyramiding or not inShortTrade)
     entryBar := bar_index
     tradeDirection := 1
 
+    // Calculate SL distance in percent and position size
+    tradeSLDistancePercent := math.abs(entryPrice - slPrice) / entryPrice * 100
+    tradePositionSize := getPositionSize(tradeSLDistancePercent)
+
 if shortSignal and not inShortTrade and (allowPyramiding or not inLongTrade)
     if inLongTrade
         inLongTrade := false
@@ -326,6 +366,10 @@ if shortSignal and not inShortTrade and (allowPyramiding or not inLongTrade)
     slPrice := entryPrice + getSLDistance()
     entryBar := bar_index
     tradeDirection := -1
+
+    // Calculate SL distance in percent and position size
+    tradeSLDistancePercent := math.abs(slPrice - entryPrice) / entryPrice * 100
+    tradePositionSize := getPositionSize(tradeSLDistancePercent)
 
 // Variables for exit visualization
 var bool longExitTP = false
@@ -344,10 +388,12 @@ if inLongTrade and bar_index >= entryBar
     exitResult = checkTPSLHit(true, tpPrice, slPrice, isSignalBar)
 
     if exitResult != 0
-        posSize = getPositionSize()
+        posSize = tradePositionSize
 
         float exitPrice = exitResult == 1 ? tpPrice : slPrice
-        float pnlPercent = ((exitPrice - entryPrice) / entryPrice) * 100
+        // PnL with leverage: price move % × leverage × position
+        float priceChangePercent = ((exitPrice - entryPrice) / entryPrice) * 100
+        float pnlPercent = priceChangePercent * leverage
         float pnlAmount = posSize * (pnlPercent / 100)
         float fees = calculateFees(posSize)
 
@@ -395,16 +441,19 @@ if inLongTrade and bar_index >= entryBar
         entryPrice := na
         tpPrice := na
         slPrice := na
+        tradePositionSize := na
 
 if inShortTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
     exitResult = checkTPSLHit(false, tpPrice, slPrice, isSignalBar)
 
     if exitResult != 0
-        posSize = getPositionSize()
+        posSize = tradePositionSize
 
         float exitPrice = exitResult == 1 ? tpPrice : slPrice
-        float pnlPercent = ((entryPrice - exitPrice) / entryPrice) * 100
+        // PnL with leverage: price move % × leverage × position
+        float priceChangePercent = ((entryPrice - exitPrice) / entryPrice) * 100
+        float pnlPercent = priceChangePercent * leverage
         float pnlAmount = posSize * (pnlPercent / 100)
         float fees = calculateFees(posSize)
 
@@ -452,6 +501,7 @@ if inShortTrade and bar_index >= entryBar
         entryPrice := na
         tpPrice := na
         slPrice := na
+        tradePositionSize := na
 
 // =============================================================================
 // VISUALIZATION
