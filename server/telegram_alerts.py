@@ -339,6 +339,31 @@ def send_bot_started(equity: float = None, active_positions: int = 0) -> bool:
     return send_message("\n".join(lines))
 
 
+def send_trailing_sl_moved(symbol: str, direction: str, old_sl: float, new_sl: float, entry: float) -> bool:
+    """Send notification when trailing SL is activated."""
+    if not is_enabled():
+        return False
+
+    emoji = "🔒"
+    dir_text = direction.upper()
+    profit_locked = abs(new_sl - entry) / entry * 100
+
+    lines = [
+        f"{emoji} <b>SL MOVED TO PROFIT</b>",
+        "",
+        f"<b>{symbol}</b> {dir_text}",
+        "",
+        f"Entry: {entry:.6f}",
+        f"Old SL: {old_sl:.6f}",
+        f"New SL: <b>{new_sl:.6f}</b>",
+        f"Profit Locked: {profit_locked:.2f}%",
+        "",
+        f"<i>{BOT_NAME}</i>",
+    ]
+
+    return send_message("\n".join(lines))
+
+
 def send_error_alert(error: str, context: str = None) -> bool:
     """Send alert for critical errors."""
     if not is_enabled():

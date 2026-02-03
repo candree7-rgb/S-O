@@ -327,6 +327,27 @@ class BybitExecutor:
             print(f"Error getting positions: {e}")
         return positions
 
+    def update_stop_loss(self, symbol: str, side: str, sl: float, symbol_info: Dict = None) -> bool:
+        """Update stop loss for an open position"""
+        try:
+            tick = symbol_info['tick_size'] if symbol_info else 0.01
+            sl = self.round_price(sl, tick)
+
+            response = self.client.set_trading_stop(
+                category="linear",
+                symbol=symbol,
+                positionIdx=0,  # one-way mode (cross)
+                stopLoss=str(sl),
+            )
+            if response['retCode'] == 0:
+                print(f"  [SL UPDATE] {symbol} new SL={sl}")
+                return True
+            else:
+                print(f"  [ERROR] SL update failed: {response['retMsg']}")
+        except Exception as e:
+            print(f"[ERROR] Update SL failed: {e}")
+        return False
+
     def cancel_order(self, symbol: str, order_id: str) -> bool:
         """Cancel a pending order"""
         try:

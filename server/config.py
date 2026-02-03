@@ -32,6 +32,10 @@ class RiskConfig:
     tp_mode: str = field(default_factory=lambda: os.getenv("TP_MODE", "single"))  # "single" or "split"
     max_longs: int = field(default_factory=lambda: int(os.getenv("MAX_LONGS", "4")))
     max_shorts: int = field(default_factory=lambda: int(os.getenv("MAX_SHORTS", "4")))
+    # Trailing SL: move SL to profit when price reaches X% of TP distance
+    trail_enabled: bool = field(default_factory=lambda: os.getenv("TRAIL_ENABLED", "true").lower() == "true")
+    trail_tp_threshold_pct: float = field(default_factory=lambda: float(os.getenv("TRAIL_TP_THRESHOLD_PCT", "85")))
+    trail_sl_move_pct: float = field(default_factory=lambda: float(os.getenv("TRAIL_SL_MOVE_PCT", "30")))
 
 
 @dataclass
