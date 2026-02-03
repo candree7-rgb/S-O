@@ -244,6 +244,23 @@ def handle_triggered(data: Dict[str, Any]):
     # Initialize executor
     init_executor()
 
+    # Check max positions limit
+    positions = executor.get_all_positions()
+    long_count = sum(1 for p in positions if p.side.lower() == 'buy')
+    short_count = sum(1 for p in positions if p.side.lower() == 'sell')
+
+    if direction == 'long' and long_count >= config.risk.max_longs:
+        msg = f"Max longs reached ({config.risk.max_longs}), skipping {symbol}"
+        print(f"  [SKIP] {msg}")
+        telegram_alerts.send_error_alert(msg, "Position limit")
+        return jsonify({'status': 'skipped', 'reason': msg}), 200
+
+    if direction == 'short' and short_count >= config.risk.max_shorts:
+        msg = f"Max shorts reached ({config.risk.max_shorts}), skipping {symbol}"
+        print(f"  [SKIP] {msg}")
+        telegram_alerts.send_error_alert(msg, "Position limit")
+        return jsonify({'status': 'skipped', 'reason': msg}), 200
+
     # Get account equity
     equity = executor.get_account_equity()
     if equity <= 0:
@@ -540,7 +557,8 @@ if __name__ == '__main__':
     print(f"Leverage: {config.risk.default_leverage}x")
     print(f"Risk per Trade: {config.risk.max_risk_per_trade_pct}%")
     print(f"TP Mode: {config.risk.tp_mode}")
-    print(f"Order Cancel: {config.order_cancel_minutes} min")
+    print(f"Max Longs: {config.risk.max_longs}")
+    print(f"Max Shorts: {config.risk.max_shorts}")
     print(f"{'='*50}\n")
 
     # Initialize executor
