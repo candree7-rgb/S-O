@@ -22,6 +22,21 @@ smartTrail = input.bool(true, "Smart Trail", inline = "1", group = groupOverlay)
 trendCatcher = input.bool(false, "Trend Catcher", inline = "2", group = groupOverlay)
 neoCloud = input.bool(false, "Neo Cloud", inline = "3", group = groupOverlay)
 reversalZone = input.bool(true, "Reversal Zones", inline = "1", group = groupOverlay)
+
+// Reversal Zone Sensitivity Settings
+groupReversalZone = "REVERSAL ZONE SETTINGS"
+rzSource = input.string("hlc3", "RZ Source", options = ["close", "hlc3", "hl2", "ohlc4", "open", "high", "low"], tooltip = "Price source for calculation", group = groupReversalZone)
+rzFilterType = input.string("Butterworth", "RZ Filter Type", options = ["SuperSmoother", "EMA", "SMA", "RMA", "Gaussian", "Butterworth", "Ehlers EMA"], tooltip = "Smoothing filter type", group = groupReversalZone)
+rzLength = input.int(120, "RZ Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for filter", group = groupReversalZone)
+rzDoubleSmooth = input.bool(true, "RZ Double Smooth", tooltip = "Apply filter twice for extra smoothing", group = groupReversalZone)
+rzDoubleSmoothLen = input.int(5, "RZ Double Smooth Length", minval = 1, maxval = 200, step = 1, tooltip = "Length for second smoothing pass", group = groupReversalZone)
+rzVolatilityType = input.string("TR", "RZ Volatility Type", options = ["TR", "ATR"], tooltip = "Use True Range or ATR for band width", group = groupReversalZone)
+rzTrLength = input.int(200, "RZ Volatility Length", minval = 10, maxval = 500, step = 5, tooltip = "Length for TR/ATR smoothing", group = groupReversalZone)
+rzVolatilityDoubleSmooth = input.bool(false, "RZ Volatility Double Smooth", tooltip = "Apply filter twice to volatility for smoother bands", group = groupReversalZone)
+rzVolatilityDoubleSmoothLen = input.int(20, "RZ Vol Double Smooth Len", minval = 1, maxval = 200, step = 1, tooltip = "Length for volatility second smoothing", group = groupReversalZone)
+rzOuterMult = input.float(1.8, "RZ Outer Multiplier", minval = 0.5, maxval = 10.0, step = 0.005, tooltip = "Outer band multiplier - affects band width", group = groupReversalZone)
+rzGradSize = input.float(0.75, "RZ Gradient Size", minval = 0.1, maxval = 2.0, step = 0.05, tooltip = "Zone gradient size - spacing between bands", group = groupReversalZone)
+rzUsePiMult = input.bool(true, "RZ Use Pi Multiplier", tooltip = "Multiply outer mult by Pi. Disable for direct multiplier values.", group = groupReversalZone)
 trendTracer = input.bool(false, "Trend Tracer", inline = "2", group = groupOverlay)
 showDashboard = input.bool(true, "Dashboard", inline = "3", group = groupOverlay)
 showTrailingStoploss = input.bool(false, "Trailing Stoploss", inline = "4", group = groupOverlay)
@@ -540,11 +555,21 @@ if showDashboard
 //*******************************************************************************
 
 indiSet = false
-source = hlc3
-type = 'SuperSmoother'
-length = 100
+// Dynamic source selection
+source = switch rzSource
+    "close" => close
+    "hlc3" => hlc3
+    "hl2" => hl2
+    "ohlc4" => ohlc4
+    "open" => open
+    "high" => high
+    "low" => low
+    => hlc3
+type = rzFilterType
+length = rzLength
+trLength = rzTrLength
 innermult = 1.0
-outermult = 2.415
+outermult = rzOuterMult
 
 ChartSet = false
 drawchannel = true
@@ -562,10 +587,10 @@ mtf_lvl2 = 'W'
 //*******************************************************************************
 // Functions Start {
 //*******************************************************************************
-var pi = 2 * math.asin(1)
-var mult = pi * innermult
-var mult2 = pi * outermult
-var gradsize = 0.5
+pi = 2 * math.asin(1)
+mult = pi * innermult
+mult2 = rzUsePiMult ? pi * outermult : outermult
+gradsize = rzGradSize
 var gradtransp = zonetransp
 
 //-----------------------
@@ -700,15 +725,34 @@ get_tf(_lvl) =>
 get_mrc() =>
     v_condition = 0
     v_meanline = source
-    v_meanrange = supersmoother(ta.tr, length)
+
+    // Volatility calculation - ATR or smoothed TR
+    v_meanrange = 0.0
+    if rzVolatilityType == "ATR"
+        v_meanrange := ta.atr(trLength)
+    else
+        v_meanrange := type == 'SuperSmoother' ? supersmoother(ta.tr, trLength) : SAK_smoothing(type, ta.tr, trLength)
+
+    // Apply double smoothing to volatility if enabled
+    if rzVolatilityDoubleSmooth
+        if type == 'SuperSmoother'
+            v_meanrange := supersmoother(v_meanrange, rzVolatilityDoubleSmoothLen)
+        else
+            v_meanrange := SAK_smoothing(type, v_meanrange, rzVolatilityDoubleSmoothLen)
 
     //-- Get Line value
     if type == 'SuperSmoother'
         v_meanline := supersmoother(source, length)
+        // Apply double smoothing if enabled
+        if rzDoubleSmooth
+            v_meanline := supersmoother(v_meanline, rzDoubleSmoothLen)
         v_meanline
 
     if type != 'SuperSmoother'
         v_meanline := SAK_smoothing(type, source, length)
+        // Apply double smoothing if enabled
+        if rzDoubleSmooth
+            v_meanline := SAK_smoothing(type, v_meanline, rzDoubleSmoothLen)
         v_meanline
 
     v_upband1   =   v_meanline   +   v_meanrange   *   mult
