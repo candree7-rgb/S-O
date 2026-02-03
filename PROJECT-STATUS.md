@@ -1,75 +1,108 @@
 # S-O Projekt Status
 
-## Migration von sysv1 - Erledigt
+## Aktueller Stand: 2026-02-03
 
-Die komplette Infrastruktur wurde von `candree7-rgb/sysv1` (SMC Ultra V2) übernommen und für den Universal Backtester adaptiert:
-
-| Komponente | Status | Anpassung |
-|---|---|---|
-| Webhook Server (Flask) | Fertig | 5 Alert-Types statt `action=entry` |
-| Bybit Executor (pybit) | Fertig | Market Orders bei TRIGGERED |
-| Supabase Trade Logger | Fertig | Neues Schema (`tp_price` statt `tp1/tp2`) |
-| Telegram Notifications | Fertig | READY/CANCELLED Nachrichten neu |
-| Next.js Dashboard | Fertig | TP Distribution vereinfacht |
-| Dockerfile + Railway | Fertig | Gleiche Struktur wie sysv1 |
+### System-Architektur
+```
+TradingView (Pine Script)
+  │  alert() mit JSON (READY / UPDATE / TRIGGERED)
+  │  1 Alert pro Watchlist = 2 Alerts total
+  ▼
+Railway Server (Flask)
+  ├── webhook_server.py  → empfängt Alerts, platziert Orders
+  ├── executor.py        → Bybit API (Cross Margin)
+  ├── trailing_sl.py     → Websocket SL-Nachzug in Echtzeit
+  ├── trade_logger.py    → Supabase Logging
+  └── telegram_alerts.py → Benachrichtigungen
+  │
+  ▼
+Bybit (Cross Margin, Limit Orders mit TP/SL)
+  │
+  ▼
+Supabase (trades Tabelle) → Next.js Dashboard
+```
 
 ---
 
-## Aktuelle Konfiguration
+## Was in dieser Session gemacht wurde
 
-### Supabase
-- Tabelle `trades` mit neuem Schema erstellt
-- Alte sysv1-Daten gelöscht
-- Indexes für Performance angelegt
+### 1. Alert-System komplett umgebaut
+- **Vorher**: 12x `alertcondition()` = 12 Alerts pro Coin = 240 Alerts bei 20 Coins
+- **Jetzt**: `alert()` Calls im Script = **2 Alerts total** (1 Long-Watchlist, 1 Short-Watchlist)
+- Nur noch 3 Alert-Types: READY, UPDATE, TRIGGERED
+- EXIT und CANCELLED entfernt (Server erkennt das selbst via Bybit API / Timeout)
 
-### Railway Environment Variables
+### 2. Trailing SL System eingebaut
+- **Pine Script**: Trailing SL Logik für korrekte Backtesting-Ergebnisse
+- **Server**: `trailing_sl.py` — Bybit Websocket Ticker-Stream monitored Preis in Echtzeit
+- Wenn Preis 85% des TP-Abstands erreicht → SL wird auf 30% über Entry verschoben
+- Einmalig pro Position (kein Step-Trailing)
+- Telegram Notification bei SL-Move
+
+### 3. Dead Code entfernt
+- `useLowerTF` und `lowerTF` Inputs entfernt (waren nie implementiert, nur TODO)
+- `ORDER_CANCEL_MINUTES` nicht mehr in Env Vars dokumentiert
+
+### 4. Doku-Fehler gefixt
+- "Binance Fees" → korrigiert zu Bybit Fees
+- `BYBIT_TESTNET` → `USE_TESTNET` als primärer Var-Name
+- Cross Margin dokumentiert
+
+---
+
+## Konfiguration
+
+### Railway Environment Variables (aktuell)
 ```
-BOT_NAME, BYBIT_API_KEY, BYBIT_API_SECRET, USE_TESTNET,
-MAX_LEVERAGE, MAX_LONGS=4, MAX_SHORTS=4, MAX_POSITION_SIZE_PCT,
-RISK_PER_TRADE_PCT, TP_MODE, SUPABASE_URL, SUPABASE_KEY,
+# Pflicht
+BYBIT_API_KEY, BYBIT_API_SECRET, USE_TESTNET
+SUPABASE_URL, SUPABASE_KEY
 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+
+# Risk
+RISK_PER_TRADE_PCT=2.0
+MAX_LEVERAGE=20
+MAX_POSITION_SIZE_PCT=5
+TP_MODE=single
+MAX_LONGS=4
+MAX_SHORTS=4
+
+# Trailing SL
+TRAIL_ENABLED=true
+TRAIL_TP_THRESHOLD_PCT=85
+TRAIL_SL_MOVE_PCT=30
+
+# Server
+PORT=8080
+BOT_NAME=S-O Trader
 ```
 
-Können noch raus (Duplikate/Altlasten):
+### Duplikat-Vars (können raus, werden als Fallback unterstützt)
 - `BYBIT_TESTNET` (Duplikat von `USE_TESTNET`)
 - `DEFAULT_LEVERAGE` (Duplikat von `MAX_LEVERAGE`)
 - `RISK_PER_TRADE` (Duplikat von `RISK_PER_TRADE_PCT`)
-- `ORDER_CANCEL_MINUTES` (nicht mehr gebraucht)
 
 ---
 
-## Alert Flow (TradingView → Bybit)
+## Alert Flow (Live-Trading)
 
-### 2 Charts nötig (Long-Chart + Short-Chart)
-
-**Long-Chart - 6 Alerts:**
-| Alert | Wann | Was passiert auf Server |
-|---|---|---|
-| `READY_LONG` | Low kreuzt unter S3 | Speichert Entry/TP/SL, Telegram "watching" |
-| `UPDATE_LONG` | Jede 15min Kerze solange READY | Aktualisiert Entry/TP/SL im Memory |
-| `TRIGGERED_LONG` | High kreuzt über S1 | **Market Order auf Bybit + TP/SL setzen** |
-| `EXIT_LONG_WIN` | TP getroffen | PnL berechnen, Supabase loggen, Telegram |
-| `EXIT_LONG_LOSS` | SL getroffen | PnL berechnen, Supabase loggen, Telegram |
-| `CANCELLED_LONG` | Max Step Interval abgelaufen | Cleanup, Telegram |
-
-**Short-Chart - 6 Alerts:**
-Gleich, nur mit SHORT, R3, R1.
-
-### Flow Visualisierung
 ```
-Kerze 1:  Low < S3        → READY_LONG    → Server merkt sich Levels
+Kerze 1:  Low < S3        → READY_LONG    → Server merkt sich Entry/TP/SL
 Kerze 2:  (wartet)        → UPDATE_LONG   → Server aktualisiert Levels
 Kerze 3:  (wartet)        → UPDATE_LONG   → Server aktualisiert Levels
-Kerze 4:  High > S1       → TRIGGERED     → Market Order auf Bybit!
-  ...                                        TP + SL als Conditional Orders
-Kerze N:  Preis trifft TP → EXIT_LONG_WIN → PnL loggen, Telegram
+Kerze 4:  High > S1       → TRIGGERED     → Limit Order auf Bybit + TP/SL
+                                              trailing_sl.py subscribed Ticker
+  ...
+Preis erreicht 85% von TP → Server verschiebt SL auf 30% über Entry (Websocket)
+  ...
+Preis trifft TP oder neuen SL → Bybit schließt Position automatisch
+                                  Server erkennt Exit, loggt in Supabase
 ```
 
-### Wichtig
-- **Keine Limit Order**: Bei TRIGGERED wird sofort eine Market Order platziert
-- **TP/SL auf Exchange**: Werden als Conditional Orders auf Bybit gesetzt, nicht vom Server überwacht
-- **EXIT kommt von TradingView**: Der Backtester erkennt TP/SL Hit auf dem Chart und sendet EXIT Alert
-- **MAX_LONGS=4 / MAX_SHORTS=4**: Server prüft vor jeder Order ob Limit erreicht
+### TradingView Alert Setup
+1. Long-Watchlist Chart → 1 Alert: Zustand = "Jeder alert()-Funktionsaufruf" → Webhook URL
+2. Short-Watchlist Chart → 1 Alert: gleich → Webhook URL
+3. **Fertig. 2 Alerts für alle Coins.**
 
 ---
 
@@ -77,33 +110,36 @@ Kerze N:  Preis trifft TP → EXIT_LONG_WIN → PnL loggen, Telegram
 
 ### 1. Railway Deploy
 - [ ] GitHub Repo in Railway von sysv1 auf S-O umstellen
+- [ ] Neue Env Vars setzen (TRAIL_ENABLED, TRAIL_TP_THRESHOLD_PCT, TRAIL_SL_MOVE_PCT)
 - [ ] Deploy auslösen
 - [ ] Health Check testen: `GET /health`
-- [ ] Webhook URL notieren
 
 ### 2. TradingView Alerts einrichten
-- [ ] Long-Chart: 6 Alerts mit Webhook URL erstellen
-- [ ] Short-Chart: 6 Alerts mit Webhook URL erstellen
-- [ ] Alert Message = automatisch vom Backtester (alertcondition)
+- [ ] Long-Watchlist: 1 Alert mit "Jeder alert()-Funktionsaufruf" + Webhook URL
+- [ ] Short-Watchlist: 1 Alert mit "Jeder alert()-Funktionsaufruf" + Webhook URL
+- [ ] `enableWebhookAlerts = true` im Backtester Settings
 
-### 3. Testen
-- [ ] Testnet Mode an (`USE_TESTNET=true`)
-- [ ] Manuellen Webhook senden (curl/Postman) → prüfen ob Order auf Bybit Testnet erscheint
-- [ ] Telegram Nachricht kommt an?
+### 3. Testen (Testnet)
+- [ ] `USE_TESTNET=true` setzen
+- [ ] Manuellen Webhook senden (curl) → prüfen ob Order auf Bybit Testnet erscheint
+- [ ] Trailing SL testen: Position manuell in Profit bringen → SL verschoben?
+- [ ] Telegram Nachrichten kommen an? (READY, TRIGGERED, SL MOVED)
 - [ ] Supabase Trade wird geloggt?
 - [ ] Dashboard zeigt Trade an?
 
-### 4. Später (optional)
+### 4. Später
 - [ ] Dashboard deployen (Vercel oder zweiter Railway Service)
-- [ ] ML Feature Collection starten
+- [ ] ML Feature Collection starten (Daten sammeln sich automatisch)
+- [ ] Exit-Erkennung server-seitig implementieren (Bybit Position-Check statt TV-Alert)
 - [ ] Duplikat-Vars aus Railway löschen
 
 ---
 
-## Offene Fragen
-- Limit Orders statt Market Orders bei TRIGGERED gewünscht?
-- Dashboard separat deployen oder reicht Supabase Dashboard?
-- Multi-Coin: Mehrere Coins auf einem Chart oder ein Chart pro Coin?
+## Bekannte Limitierungen
+
+- **Trailing SL ist einmalig**: Wird nur 1x verschoben (kein progressives Trailing)
+- **Exit-Erkennung**: Server hat noch `handle_exit()` und `handle_cancelled()` für Legacy-Support, aber TV sendet diese Alerts nicht mehr. Server-seitige Exit-Erkennung via Bybit Position-Polling fehlt noch.
+- **Gunicorn Workers**: Bei 2 Workers teilen sich die Worker NICHT den `trailing_monitor` State. Entweder auf 1 Worker reduzieren oder Redis/shared State einbauen.
 
 ---
 
