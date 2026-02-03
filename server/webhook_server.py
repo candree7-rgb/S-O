@@ -33,12 +33,16 @@ from flask import Flask, request, jsonify
 from config import config
 from executor import BybitExecutor
 from trade_logger import get_trade_logger, TradeRecord
+from trailing_sl import TrailingSLMonitor
 import telegram_alerts
 
 app = Flask(__name__)
 
 # Global executor
 executor: Optional[BybitExecutor] = None
+
+# Trailing SL monitor
+trailing_monitor: Optional[TrailingSLMonitor] = None
 
 # Track pending orders for cancellation
 pending_orders: Dict[str, Dict[str, Any]] = {}
@@ -49,9 +53,12 @@ ready_states: Dict[str, Dict[str, Any]] = {}  # key = "LONG_BTCUSDT"
 
 def init_executor():
     """Initialize Bybit executor"""
-    global executor
+    global executor, trailing_monitor
     if executor is None:
         executor = BybitExecutor()
+    if trailing_monitor is None:
+        trailing_monitor = TrailingSLMonitor(executor)
+        trailing_monitor.start()
     return executor
 
 
@@ -330,6 +337,10 @@ def handle_triggered(data: Dict[str, Any]):
         if trade_id:
             pending_orders[order_id]['trade_id'] = trade_id
 
+        # Start trailing SL monitoring for this position
+        if trailing_monitor:
+            trailing_monitor.track_position(symbol, direction, entry, tp, sl)
+
         # Telegram notification
         telegram_alerts.send_trade_opened(
             symbol=symbol,
@@ -423,6 +434,10 @@ def handle_exit(data: Dict[str, Any]):
             outcome=outcome,
             duration_mins=duration_mins,
         )
+
+        # Stop trailing SL monitoring
+        if trailing_monitor:
+            trailing_monitor.untrack_position(symbol)
 
         # Clean up pending orders for this symbol
         to_remove = [oid for oid, info in pending_orders.items() if info['symbol'] == symbol]
@@ -559,6 +574,8 @@ if __name__ == '__main__':
     print(f"TP Mode: {config.risk.tp_mode}")
     print(f"Max Longs: {config.risk.max_longs}")
     print(f"Max Shorts: {config.risk.max_shorts}")
+    print(f"Trailing SL: {'ON' if config.risk.trail_enabled else 'OFF'} "
+          f"({config.risk.trail_tp_threshold_pct}% TP -> SL at {config.risk.trail_sl_move_pct}%)")
     print(f"{'='*50}\n")
 
     # Initialize executor
