@@ -10,11 +10,11 @@
 --   3. Click "Run"
 -- =============================================================================
 
--- Drop old table if migrating from sysv1
--- DROP TABLE IF EXISTS trades;
+-- Drop old table (sysv1 schema is incompatible - different columns)
+DROP TABLE IF EXISTS trades;
 
--- Create trades table
-CREATE TABLE IF NOT EXISTS trades (
+-- Create trades table with new S-O schema
+CREATE TABLE trades (
     -- Primary key
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -73,11 +73,11 @@ CREATE TABLE IF NOT EXISTS trades (
 -- =============================================================================
 -- INDEXES for performance
 -- =============================================================================
-CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);
-CREATE INDEX IF NOT EXISTS idx_trades_exit_time ON trades(exit_time);
-CREATE INDEX IF NOT EXISTS idx_trades_direction ON trades(direction);
-CREATE INDEX IF NOT EXISTS idx_trades_is_win ON trades(is_win);
-CREATE INDEX IF NOT EXISTS idx_trades_entry_time ON trades(entry_time);
+CREATE INDEX idx_trades_symbol ON trades(symbol);
+CREATE INDEX idx_trades_exit_time ON trades(exit_time);
+CREATE INDEX idx_trades_direction ON trades(direction);
+CREATE INDEX idx_trades_is_win ON trades(is_win);
+CREATE INDEX idx_trades_entry_time ON trades(entry_time);
 
 -- =============================================================================
 -- ROW LEVEL SECURITY (optional - enable if using anon key from frontend)
