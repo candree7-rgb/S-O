@@ -1,0 +1,17 @@
+# S-O Trading System - Server Dependencies
+
+# Web Framework
+flask>=3.0.0
+gunicorn>=21.2.0
+
+# Bybit API
+pybit>=5.6.0
+
+# Database
+supabase>=2.0.0
+
+# Telegram
+requests>=2.31.0
+
+# Utils
+python-dotenv>=1.0.0
