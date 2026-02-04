@@ -11,6 +11,10 @@ Alert Types from Universal Backtester:
   EXIT       - TP or SL hit
   CANCELLED  - Ready state expired without triggering
 
+Shadow Trading (for ML):
+  When at max positions, trades are tracked as "shadow" trades.
+  Their theoretical outcomes (WIN/LOSS) are logged for ML training.
+
 Usage:
     python webhook_server.py
 
@@ -25,8 +29,10 @@ import os
 import json
 import hmac
 import hashlib
+import threading
+import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from flask import Flask, request, jsonify
 
@@ -49,6 +55,15 @@ pending_orders: Dict[str, Dict[str, Any]] = {}
 
 # Track ready states (for context when TRIGGERED arrives)
 ready_states: Dict[str, Dict[str, Any]] = {}  # key = "LONG_BTCUSDT"
+
+# Shadow trades - trades not executed but tracked for ML
+shadow_trades: Dict[str, Dict[str, Any]] = {}  # key = "LONG_BTCUSDT_timestamp"
+
+# Pending signals queue (for scoring when multiple arrive)
+pending_signals: List[Dict[str, Any]] = []
+signal_batch_window_ms = 500  # Wait this long to collect signals before scoring
+last_signal_time: Optional[float] = None
+signal_processor_lock = threading.Lock()
 
 
 def init_executor():
@@ -83,18 +98,251 @@ def ensure_usdt_suffix(symbol: str) -> str:
 
 
 # =============================================================================
+# SCORING SYSTEM (for trade selection when multiple signals)
+# =============================================================================
+
+# Cache for symbol winrates (avoid DB calls every signal)
+_winrate_cache: Dict[str, Dict[str, Any]] = {}
+_winrate_cache_ttl = 300  # 5 minutes
+
+
+def get_cached_winrate(symbol: str) -> Dict[str, Any]:
+    """Get winrate from cache or DB"""
+    import time
+    now = time.time()
+
+    if symbol in _winrate_cache:
+        cached = _winrate_cache[symbol]
+        if now - cached.get('_cached_at', 0) < _winrate_cache_ttl:
+            return cached
+
+    # Fetch from DB
+    logger = get_trade_logger()
+    winrate_data = logger.get_symbol_winrate(symbol)
+    winrate_data['_cached_at'] = now
+    _winrate_cache[symbol] = winrate_data
+
+    return winrate_data
+
+
+def calculate_signal_score(data: Dict[str, Any], direction: str, include_history: bool = True) -> float:
+    """
+    Calculate a score for a trading signal based on ML features.
+    Higher score = better trade opportunity.
+
+    Features:
+    - RSI: For longs, lower is better (oversold). For shorts, higher is better.
+    - Volume Ratio: Higher is better (more confirmation)
+    - ATR %: Sweet spot around 2-4% is ideal
+    - Historical Winrate: Weighted by confidence (more trades = more weight)
+    """
+    score = 0.0
+
+    # RSI scoring (0-100 scale)
+    rsi = float(data.get('rsi', 50))
+    if direction == 'long':
+        # For longs: RSI < 30 is best, RSI > 70 is worst
+        if rsi < 20:
+            score += 4
+        elif rsi < 30:
+            score += 3
+        elif rsi < 40:
+            score += 2
+        elif rsi < 50:
+            score += 1
+        elif rsi > 70:
+            score -= 2
+    else:
+        # For shorts: RSI > 70 is best, RSI < 30 is worst
+        if rsi > 80:
+            score += 4
+        elif rsi > 70:
+            score += 3
+        elif rsi > 60:
+            score += 2
+        elif rsi > 50:
+            score += 1
+        elif rsi < 30:
+            score -= 2
+
+    # Volume Ratio scoring (higher = more confirmation)
+    vol_ratio = float(data.get('volumeRatio', 1.0))
+    if vol_ratio > 2.5:
+        score += 3
+    elif vol_ratio > 1.5:
+        score += 2
+    elif vol_ratio > 1.0:
+        score += 1
+    elif vol_ratio < 0.5:
+        score -= 1  # Low volume = weak signal
+
+    # ATR % scoring (sweet spot: 2-4%)
+    atr_pct = float(data.get('atrPercent', 2.0))
+    if 2.0 <= atr_pct <= 4.0:
+        score += 2  # Ideal volatility
+    elif 1.0 <= atr_pct < 2.0 or 4.0 < atr_pct <= 6.0:
+        score += 1  # Acceptable
+    elif atr_pct > 8.0:
+        score -= 1  # Too volatile
+    elif atr_pct < 0.5:
+        score -= 1  # Too quiet
+
+    # Historical winrate scoring (confidence-weighted)
+    if include_history:
+        symbol = ensure_usdt_suffix(data.get('coin', ''))
+        winrate_data = get_cached_winrate(symbol)
+
+        winrate = winrate_data.get('winrate', 0.5)
+        confidence = winrate_data.get('confidence', 0)
+        total_trades = winrate_data.get('total', 0)
+
+        # Winrate contribution: -3 to +3, weighted by confidence
+        # 50% winrate = 0, 80% = +3, 20% = -3
+        winrate_score = (winrate - 0.5) * 6  # Range: -3 to +3
+        winrate_score *= confidence  # Weight by confidence
+
+        score += winrate_score
+
+        # Bonus for coins with proven track record (10+ trades with >60% WR)
+        if total_trades >= 10 and winrate >= 0.6:
+            score += 1
+
+    return score
+
+
+# =============================================================================
+# SHADOW TRADE TRACKING (for ML data collection)
+# =============================================================================
+
+def create_shadow_trade(data: Dict[str, Any], reason: str) -> str:
+    """
+    Create a shadow trade entry for ML tracking.
+    Shadow trades are signals we didn't execute but want to track outcomes.
+    """
+    symbol = ensure_usdt_suffix(data.get('coin', ''))
+    direction = data.get('direction', '').lower()
+    entry = float(data.get('entry', 0))
+    tp = float(data.get('tp', 0))
+    sl = float(data.get('sl', 0))
+
+    shadow_id = f"{direction.upper()}_{symbol}_{int(time.time() * 1000)}"
+
+    shadow_trades[shadow_id] = {
+        'id': shadow_id,
+        'symbol': symbol,
+        'direction': direction,
+        'entry': entry,
+        'tp': tp,
+        'sl': sl,
+        'reason': reason,  # Why it wasn't executed
+        'created_at': datetime.utcnow(),
+        'rsi': float(data.get('rsi', 0)),
+        'volume_ratio': float(data.get('volumeRatio', 0)),
+        'atr_percent': float(data.get('atrPercent', 0)),
+        'score': calculate_signal_score(data, direction),
+        'status': 'ACTIVE',  # ACTIVE, WIN, LOSS
+        'outcome': None,
+        'exit_time': None,
+    }
+
+    print(f"[SHADOW] Created shadow trade: {shadow_id} (reason: {reason})")
+
+    # Log to Supabase
+    logger = get_trade_logger()
+    if hasattr(logger, 'log_shadow_trade'):
+        logger.log_shadow_trade(shadow_trades[shadow_id])
+
+    return shadow_id
+
+
+def check_shadow_trades():
+    """
+    Background task to check shadow trades for TP/SL hits.
+    Called periodically by the shadow monitor thread.
+    """
+    if not executor or not shadow_trades:
+        return
+
+    # Get current prices for all symbols with shadow trades
+    symbols_to_check = set(st['symbol'] for st in shadow_trades.values() if st['status'] == 'ACTIVE')
+
+    for symbol in symbols_to_check:
+        try:
+            # Get current price
+            ticker = executor.session.get_tickers(category="linear", symbol=symbol)
+            if ticker and 'result' in ticker and 'list' in ticker['result'] and ticker['result']['list']:
+                current_price = float(ticker['result']['list'][0]['lastPrice'])
+
+                # Check all active shadow trades for this symbol
+                for shadow_id, shadow in list(shadow_trades.items()):
+                    if shadow['symbol'] != symbol or shadow['status'] != 'ACTIVE':
+                        continue
+
+                    entry = shadow['entry']
+                    tp = shadow['tp']
+                    sl = shadow['sl']
+                    direction = shadow['direction']
+
+                    outcome = None
+
+                    if direction == 'long':
+                        if current_price >= tp:
+                            outcome = 'WIN'
+                        elif current_price <= sl:
+                            outcome = 'LOSS'
+                    else:  # short
+                        if current_price <= tp:
+                            outcome = 'WIN'
+                        elif current_price >= sl:
+                            outcome = 'LOSS'
+
+                    if outcome:
+                        shadow_trades[shadow_id]['status'] = outcome
+                        shadow_trades[shadow_id]['outcome'] = outcome
+                        shadow_trades[shadow_id]['exit_time'] = datetime.utcnow()
+                        shadow_trades[shadow_id]['exit_price'] = current_price
+
+                        print(f"[SHADOW] {shadow_id} -> {outcome} (price: {current_price})")
+
+                        # Log to Supabase
+                        logger = get_trade_logger()
+                        if hasattr(logger, 'update_shadow_trade'):
+                            logger.update_shadow_trade(shadow_id, outcome, current_price)
+
+        except Exception as e:
+            print(f"[SHADOW] Error checking {symbol}: {e}")
+
+
+def start_shadow_monitor():
+    """Start background thread to monitor shadow trades"""
+    def monitor_loop():
+        while True:
+            try:
+                check_shadow_trades()
+            except Exception as e:
+                print(f"[SHADOW] Monitor error: {e}")
+            time.sleep(30)  # Check every 30 seconds
+
+    thread = threading.Thread(target=monitor_loop, daemon=True)
+    thread.start()
+    print("[SHADOW] Shadow trade monitor started")
+
+
+# =============================================================================
 # WEBHOOK ENDPOINTS
 # =============================================================================
 
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    active_shadows = sum(1 for s in shadow_trades.values() if s['status'] == 'ACTIVE')
     return jsonify({
         'status': 'ok',
         'time': datetime.utcnow().isoformat(),
         'testnet': config.api.testnet,
         'pending_orders': len(pending_orders),
-        'ready_states': len(ready_states)
+        'ready_states': len(ready_states),
+        'shadow_trades': {'active': active_shadows, 'total': len(shadow_trades)}
     })
 
 
@@ -256,25 +504,31 @@ def handle_triggered(data: Dict[str, Any]):
     long_count = sum(1 for p in positions if p.side.lower() == 'buy')
     short_count = sum(1 for p in positions if p.side.lower() == 'sell')
 
+    # Calculate score for this signal (includes historical winrate)
+    signal_score = calculate_signal_score(data, direction)
+    winrate_data = get_cached_winrate(symbol)
+    wr_str = f"{winrate_data['wins']}/{winrate_data['total']}" if winrate_data['total'] > 0 else "new"
+    print(f"  Score: {signal_score:.1f} (RSI={data.get('rsi', 'N/A')}, Vol={data.get('volumeRatio', 'N/A')}, ATR%={data.get('atrPercent', 'N/A')}, WR={wr_str})")
+
     if direction == 'long' and long_count >= config.risk.max_longs:
-        msg = f"Max longs reached ({config.risk.max_longs}), skipping {symbol}"
-        print(f"  [SKIP] {msg}")
-        telegram_alerts.send_error_alert(msg, "Position limit")
-        return jsonify({'status': 'skipped', 'reason': msg}), 200
+        msg = f"Max longs reached ({config.risk.max_longs}), creating shadow trade for {symbol}"
+        print(f"  [SHADOW] {msg}")
+        shadow_id = create_shadow_trade(data, "max_longs_reached")
+        return jsonify({'status': 'shadow', 'reason': msg, 'shadow_id': shadow_id, 'score': signal_score}), 200
 
     if direction == 'short' and short_count >= config.risk.max_shorts:
-        msg = f"Max shorts reached ({config.risk.max_shorts}), skipping {symbol}"
-        print(f"  [SKIP] {msg}")
-        telegram_alerts.send_error_alert(msg, "Position limit")
-        return jsonify({'status': 'skipped', 'reason': msg}), 200
+        msg = f"Max shorts reached ({config.risk.max_shorts}), creating shadow trade for {symbol}"
+        print(f"  [SHADOW] {msg}")
+        shadow_id = create_shadow_trade(data, "max_shorts_reached")
+        return jsonify({'status': 'shadow', 'reason': msg, 'shadow_id': shadow_id, 'score': signal_score}), 200
 
     # Check if this specific coin already has an open position
     existing_position = next((p for p in positions if p.symbol == symbol), None)
     if existing_position:
-        msg = f"{symbol} already has open {existing_position.side} position, skipping"
-        print(f"  [SKIP] {msg}")
-        telegram_alerts.send_error_alert(msg, "Duplicate position")
-        return jsonify({'status': 'skipped', 'reason': msg}), 200
+        msg = f"{symbol} already has open {existing_position.side} position, creating shadow trade"
+        print(f"  [SHADOW] {msg}")
+        shadow_id = create_shadow_trade(data, "duplicate_position")
+        return jsonify({'status': 'shadow', 'reason': msg, 'shadow_id': shadow_id, 'score': signal_score}), 200
 
     # Get account equity
     equity = executor.get_account_equity()
@@ -565,6 +819,52 @@ def close_position():
     return jsonify({'status': 'success' if success else 'failed', 'symbol': symbol})
 
 
+@app.route('/shadows', methods=['GET'])
+def get_shadow_trades():
+    """Get shadow trades for ML analysis"""
+    status_filter = request.args.get('status', None)  # ACTIVE, WIN, LOSS
+
+    filtered = shadow_trades.values()
+    if status_filter:
+        filtered = [s for s in filtered if s['status'] == status_filter.upper()]
+
+    # Calculate statistics
+    all_shadows = list(shadow_trades.values())
+    wins = sum(1 for s in all_shadows if s['outcome'] == 'WIN')
+    losses = sum(1 for s in all_shadows if s['outcome'] == 'LOSS')
+    active = sum(1 for s in all_shadows if s['status'] == 'ACTIVE')
+
+    return jsonify({
+        'stats': {
+            'total': len(all_shadows),
+            'active': active,
+            'wins': wins,
+            'losses': losses,
+            'winrate': f"{wins/(wins+losses)*100:.1f}%" if (wins + losses) > 0 else "N/A"
+        },
+        'shadows': [
+            {
+                'id': s['id'],
+                'symbol': s['symbol'],
+                'direction': s['direction'],
+                'entry': s['entry'],
+                'tp': s['tp'],
+                'sl': s['sl'],
+                'reason': s['reason'],
+                'score': s['score'],
+                'rsi': s['rsi'],
+                'volume_ratio': s['volume_ratio'],
+                'atr_percent': s['atr_percent'],
+                'status': s['status'],
+                'outcome': s['outcome'],
+                'created_at': s['created_at'].isoformat() if s['created_at'] else None,
+                'exit_time': s['exit_time'].isoformat() if s.get('exit_time') else None,
+            }
+            for s in sorted(filtered, key=lambda x: x['created_at'], reverse=True)[:50]  # Last 50
+        ]
+    })
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -588,6 +888,9 @@ if __name__ == '__main__':
 
     # Initialize executor
     init_executor()
+
+    # Start shadow trade monitor (for ML data collection)
+    start_shadow_monitor()
 
     # Send bot started notification
     equity = executor.get_account_equity()

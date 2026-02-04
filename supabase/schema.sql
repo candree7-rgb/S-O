@@ -106,3 +106,57 @@ COMMENT ON COLUMN trades.pnl_pct_equity IS 'PnL as percentage of total equity';
 COMMENT ON COLUMN trades.atr_value IS 'ATR value at entry (from Universal Backtester)';
 COMMENT ON COLUMN trades.zone_width IS 'Reversal Zone width (S1-S3 or R1-R3 distance)';
 COMMENT ON COLUMN trades.bars_in_ready IS 'Number of bars in READY state before triggering';
+
+
+-- =============================================================================
+-- SHADOW TRADES TABLE (for ML data collection)
+-- =============================================================================
+-- Shadow trades are signals we didn't execute (max positions reached, etc.)
+-- but we track their theoretical outcomes for ML training.
+-- This helps us learn which signals we should prioritize.
+-- =============================================================================
+
+DROP TABLE IF EXISTS shadow_trades;
+
+CREATE TABLE shadow_trades (
+    -- Primary key
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Shadow trade ID (from webhook server)
+    shadow_id TEXT UNIQUE NOT NULL,
+
+    -- === BASICS ===
+    symbol TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK (direction IN ('long', 'short')),
+
+    -- === ENTRY/EXIT LEVELS ===
+    entry_price DOUBLE PRECISION NOT NULL,
+    tp_price DOUBLE PRECISION NOT NULL,
+    sl_price DOUBLE PRECISION NOT NULL,
+
+    -- === WHY NOT EXECUTED ===
+    reason TEXT NOT NULL,  -- 'max_longs_reached', 'max_shorts_reached', 'duplicate_position'
+
+    -- === ML FEATURES (at signal time) ===
+    rsi DOUBLE PRECISION,
+    volume_ratio DOUBLE PRECISION,
+    atr_percent DOUBLE PRECISION,
+    score DOUBLE PRECISION,  -- ML score at signal time
+
+    -- === OUTCOME (filled when TP/SL hit) ===
+    status TEXT DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'WIN', 'LOSS')),
+    outcome TEXT CHECK (outcome IN ('WIN', 'LOSS')),
+    exit_price DOUBLE PRECISION,
+    exit_time TIMESTAMPTZ
+);
+
+-- Indexes
+CREATE INDEX idx_shadow_symbol ON shadow_trades(symbol);
+CREATE INDEX idx_shadow_status ON shadow_trades(status);
+CREATE INDEX idx_shadow_outcome ON shadow_trades(outcome);
+CREATE INDEX idx_shadow_created ON shadow_trades(created_at);
+
+COMMENT ON TABLE shadow_trades IS 'Shadow trades - signals not executed but tracked for ML';
+COMMENT ON COLUMN shadow_trades.reason IS 'Why this trade was not executed';
+COMMENT ON COLUMN shadow_trades.score IS 'ML score at signal time (for comparing with actual outcomes)';
