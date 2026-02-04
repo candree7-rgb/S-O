@@ -634,31 +634,57 @@ calculateFees(tradeValue) =>
     else
         fixedFeePerTrade
 
-// Check if TP or SL hit using Lower Timeframe
-checkTPSLHit(isLong, tp, sl, isSignalBar) =>
+// Check if TP or SL hit
+// Signal Bar Logic: Entry happens MID-CANDLE (when price crosses level), so:
+//   - The Low BEFORE entry doesn't count as SL hit
+//   - Use CLOSE to determine: if close >= entry, SL wasn't hit after entry
+checkTPSLHit(isLong, tp, sl, isSignalBar, entry) =>
     tpHit = false
     slHit = false
 
-    if isLong
-        tpHit := high >= tp
-        slHit := low <= sl
+    if isSignalBar
+        // SIGNAL BAR: Entry happened mid-candle when price crossed the level
+        // We can't know exact intra-candle order, so use close as proxy:
+        // - If close is favorable (>= entry for long), trade is in profit = no SL hit
+        // - If close is unfavorable, check if low/high actually hit SL
+        if isLong
+            if close >= entry
+                // Closed above entry = trade in profit, SL wasn't hit after entry
+                tpHit := high >= tp  // TP could still be hit
+                slHit := false
+            else
+                // Closed below entry = price dropped after entry, check SL
+                tpHit := high >= tp
+                slHit := low <= sl
+        else  // Short
+            if close <= entry
+                // Closed below entry = trade in profit, SL wasn't hit after entry
+                tpHit := low <= tp
+                slHit := false
+            else
+                // Closed above entry = price rose after entry, check SL
+                tpHit := low <= tp
+                slHit := high >= sl
     else
-        tpHit := low <= tp
-        slHit := high >= sl
+        // NORMAL BARS: Standard high/low check
+        if isLong
+            tpHit := high >= tp
+            slHit := low <= sl
+        else
+            tpHit := low <= tp
+            slHit := high >= sl
 
     // Determine which was hit first
     result = 0  // 0 = none, 1 = TP, -1 = SL
 
     if tpHit and slHit
-        // Both hit - use different logic for signal bar vs next bars
+        // Both hit - use conflict resolution
         conflictResolution = isSignalBar ? signalBarMode : nextBarMode
 
-        // TODO: Implement lower TF check with request.security for more accuracy
-        // For now, use conflict resolution modes
         if conflictResolution == "TP First" or conflictResolution == "Optimistic"
-            result := 1   // TP first (signal bar = good direction)
+            result := 1   // TP first
         else if conflictResolution == "Pessimistic"
-            result := -1  // SL first (worse case)
+            result := -1  // SL first
         else  // Open-Based
             if isLong
                 result := open > (tp + sl) / 2 ? -1 : 1
@@ -752,7 +778,7 @@ shortExitSL := false
 // Exit Logic - Check TP/SL
 if inLongTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
-    exitResult = checkTPSLHit(true, tpPrice, slPrice, isSignalBar)
+    exitResult = checkTPSLHit(true, tpPrice, slPrice, isSignalBar, entryPrice)
 
     if exitResult != 0
         posSize = tradePositionSize
@@ -814,7 +840,7 @@ if inLongTrade and bar_index >= entryBar
 
 if inShortTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
-    exitResult = checkTPSLHit(false, tpPrice, slPrice, isSignalBar)
+    exitResult = checkTPSLHit(false, tpPrice, slPrice, isSignalBar, entryPrice)
 
     if exitResult != 0
         posSize = tradePositionSize
