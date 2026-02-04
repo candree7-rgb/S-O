@@ -268,6 +268,14 @@ def handle_triggered(data: Dict[str, Any]):
         telegram_alerts.send_error_alert(msg, "Position limit")
         return jsonify({'status': 'skipped', 'reason': msg}), 200
 
+    # Check if this specific coin already has an open position
+    existing_position = next((p for p in positions if p.symbol == symbol), None)
+    if existing_position:
+        msg = f"{symbol} already has open {existing_position.side} position, skipping"
+        print(f"  [SKIP] {msg}")
+        telegram_alerts.send_error_alert(msg, "Duplicate position")
+        return jsonify({'status': 'skipped', 'reason': msg}), 200
+
     # Get account equity
     equity = executor.get_account_equity()
     if equity <= 0:
