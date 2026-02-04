@@ -101,7 +101,31 @@ def ensure_usdt_suffix(symbol: str) -> str:
 # SCORING SYSTEM (for trade selection when multiple signals)
 # =============================================================================
 
-def calculate_signal_score(data: Dict[str, Any], direction: str) -> float:
+# Cache for symbol winrates (avoid DB calls every signal)
+_winrate_cache: Dict[str, Dict[str, Any]] = {}
+_winrate_cache_ttl = 300  # 5 minutes
+
+
+def get_cached_winrate(symbol: str) -> Dict[str, Any]:
+    """Get winrate from cache or DB"""
+    import time
+    now = time.time()
+
+    if symbol in _winrate_cache:
+        cached = _winrate_cache[symbol]
+        if now - cached.get('_cached_at', 0) < _winrate_cache_ttl:
+            return cached
+
+    # Fetch from DB
+    logger = get_trade_logger()
+    winrate_data = logger.get_symbol_winrate(symbol)
+    winrate_data['_cached_at'] = now
+    _winrate_cache[symbol] = winrate_data
+
+    return winrate_data
+
+
+def calculate_signal_score(data: Dict[str, Any], direction: str, include_history: bool = True) -> float:
     """
     Calculate a score for a trading signal based on ML features.
     Higher score = better trade opportunity.
@@ -110,6 +134,7 @@ def calculate_signal_score(data: Dict[str, Any], direction: str) -> float:
     - RSI: For longs, lower is better (oversold). For shorts, higher is better.
     - Volume Ratio: Higher is better (more confirmation)
     - ATR %: Sweet spot around 2-4% is ideal
+    - Historical Winrate: Weighted by confidence (more trades = more weight)
     """
     score = 0.0
 
@@ -161,6 +186,26 @@ def calculate_signal_score(data: Dict[str, Any], direction: str) -> float:
         score -= 1  # Too volatile
     elif atr_pct < 0.5:
         score -= 1  # Too quiet
+
+    # Historical winrate scoring (confidence-weighted)
+    if include_history:
+        symbol = ensure_usdt_suffix(data.get('coin', ''))
+        winrate_data = get_cached_winrate(symbol)
+
+        winrate = winrate_data.get('winrate', 0.5)
+        confidence = winrate_data.get('confidence', 0)
+        total_trades = winrate_data.get('total', 0)
+
+        # Winrate contribution: -3 to +3, weighted by confidence
+        # 50% winrate = 0, 80% = +3, 20% = -3
+        winrate_score = (winrate - 0.5) * 6  # Range: -3 to +3
+        winrate_score *= confidence  # Weight by confidence
+
+        score += winrate_score
+
+        # Bonus for coins with proven track record (10+ trades with >60% WR)
+        if total_trades >= 10 and winrate >= 0.6:
+            score += 1
 
     return score
 
@@ -459,9 +504,11 @@ def handle_triggered(data: Dict[str, Any]):
     long_count = sum(1 for p in positions if p.side.lower() == 'buy')
     short_count = sum(1 for p in positions if p.side.lower() == 'sell')
 
-    # Calculate score for this signal
+    # Calculate score for this signal (includes historical winrate)
     signal_score = calculate_signal_score(data, direction)
-    print(f"  Score: {signal_score:.1f} (RSI={data.get('rsi', 'N/A')}, Vol={data.get('volumeRatio', 'N/A')}, ATR%={data.get('atrPercent', 'N/A')})")
+    winrate_data = get_cached_winrate(symbol)
+    wr_str = f"{winrate_data['wins']}/{winrate_data['total']}" if winrate_data['total'] > 0 else "new"
+    print(f"  Score: {signal_score:.1f} (RSI={data.get('rsi', 'N/A')}, Vol={data.get('volumeRatio', 'N/A')}, ATR%={data.get('atrPercent', 'N/A')}, WR={wr_str})")
 
     if direction == 'long' and long_count >= config.risk.max_longs:
         msg = f"Max longs reached ({config.risk.max_longs}), creating shadow trade for {symbol}"

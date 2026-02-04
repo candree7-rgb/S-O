@@ -258,6 +258,144 @@ class TradeLogger:
             print(f"  [DB ERR] Get stats: {e}", flush=True)
             return {}
 
+    def get_symbol_winrate(self, symbol: str) -> Dict[str, Any]:
+        """
+        Get historical winrate for a specific symbol.
+        Returns wins, losses, total, winrate, and confidence score.
+
+        Confidence scoring: more trades = more confidence in winrate
+        """
+        if not self.enabled:
+            return {'wins': 0, 'losses': 0, 'total': 0, 'winrate': 0.5, 'confidence': 0}
+
+        try:
+            result = self.client.table('trades')\
+                .select('is_win')\
+                .eq('symbol', symbol)\
+                .not_.is_('exit_time', 'null')\
+                .execute()
+
+            trades = result.data
+            if not trades:
+                return {'wins': 0, 'losses': 0, 'total': 0, 'winrate': 0.5, 'confidence': 0}
+
+            wins = sum(1 for t in trades if t.get('is_win'))
+            losses = len(trades) - wins
+            total = len(trades)
+
+            # Wilson score lower bound for confidence
+            # With few trades, we're less confident in the winrate
+            winrate = wins / total if total > 0 else 0.5
+
+            # Confidence: 0 to 1, based on number of trades
+            # 10+ trades = full confidence
+            confidence = min(total / 10, 1.0)
+
+            return {
+                'wins': wins,
+                'losses': losses,
+                'total': total,
+                'winrate': winrate,
+                'confidence': confidence
+            }
+
+        except Exception as e:
+            print(f"  [DB ERR] Get symbol winrate: {e}", flush=True)
+            return {'wins': 0, 'losses': 0, 'total': 0, 'winrate': 0.5, 'confidence': 0}
+
+    def log_shadow_trade(self, shadow_data: Dict[str, Any]) -> Optional[str]:
+        """Log a shadow trade (signal not executed but tracked for ML)"""
+        if not self.enabled:
+            return None
+
+        try:
+            data = {
+                'shadow_id': shadow_data['id'],
+                'symbol': shadow_data['symbol'],
+                'direction': shadow_data['direction'],
+                'entry_price': shadow_data['entry'],
+                'tp_price': shadow_data['tp'],
+                'sl_price': shadow_data['sl'],
+                'reason': shadow_data['reason'],
+                'rsi': shadow_data.get('rsi'),
+                'volume_ratio': shadow_data.get('volume_ratio'),
+                'atr_percent': shadow_data.get('atr_percent'),
+                'score': shadow_data.get('score'),
+                'created_at': shadow_data['created_at'].isoformat(),
+                'status': 'ACTIVE',
+            }
+
+            data = {k: v for k, v in data.items() if v is not None}
+
+            result = self.client.table('shadow_trades').insert(data).execute()
+
+            if result.data:
+                print(f"  [DB] Shadow trade logged: {shadow_data['id'][:20]}...", flush=True)
+                return shadow_data['id']
+
+        except Exception as e:
+            print(f"  [DB ERR] Log shadow trade: {str(e)[:80]}", flush=True)
+
+        return None
+
+    def update_shadow_trade(self, shadow_id: str, outcome: str, exit_price: float) -> bool:
+        """Update shadow trade with outcome (WIN/LOSS)"""
+        if not self.enabled:
+            return False
+
+        try:
+            from datetime import datetime
+
+            data = {
+                'status': outcome,
+                'outcome': outcome,
+                'exit_price': exit_price,
+                'exit_time': datetime.utcnow().isoformat(),
+            }
+
+            result = self.client.table('shadow_trades')\
+                .update(data)\
+                .eq('shadow_id', shadow_id)\
+                .execute()
+
+            if result.data:
+                print(f"  [DB] Shadow trade updated: {shadow_id[:20]}... -> {outcome}", flush=True)
+                return True
+
+        except Exception as e:
+            print(f"  [DB ERR] Update shadow trade: {str(e)[:80]}", flush=True)
+
+        return False
+
+    def get_shadow_stats(self) -> Dict[str, Any]:
+        """Get shadow trade statistics for ML analysis"""
+        if not self.enabled:
+            return {}
+
+        try:
+            result = self.client.table('shadow_trades')\
+                .select('*')\
+                .not_.is_('outcome', 'null')\
+                .execute()
+
+            shadows = result.data
+            if not shadows:
+                return {'total': 0}
+
+            wins = [s for s in shadows if s.get('outcome') == 'WIN']
+            losses = [s for s in shadows if s.get('outcome') == 'LOSS']
+
+            return {
+                'total': len(shadows),
+                'wins': len(wins),
+                'losses': len(losses),
+                'winrate': len(wins) / len(shadows) * 100 if shadows else 0,
+            }
+
+        except Exception as e:
+            print(f"  [DB ERR] Get shadow stats: {e}", flush=True)
+            return {}
+
 
 # Global instance
 _logger: Optional[TradeLogger] = None
