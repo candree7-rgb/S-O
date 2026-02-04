@@ -635,38 +635,26 @@ calculateFees(tradeValue) =>
         fixedFeePerTrade
 
 // Check if TP or SL hit
-// Signal Bar Logic: Entry happens MID-CANDLE (when price crosses level), so:
-//   - The Low BEFORE entry doesn't count as SL hit
-//   - Use CLOSE to determine: if close >= entry, SL wasn't hit after entry
-checkTPSLHit(isLong, tp, sl, isSignalBar, entry) =>
+// Signal Bar Logic: For Reversal Zone strategy, entry happens when price EXITS the zone:
+//   - LONG: Entry when High crosses over S1 (price going UP out of zone)
+//   - SHORT: Entry when Low crosses under R1 (price going DOWN out of zone)
+//   - The Low/High BEFORE the crossing was before entry → SL impossible on signal bar
+//   - Only check TP on signal bar, SL check starts from NEXT bar
+checkTPSLHit(isLong, tp, sl, isSignalBar) =>
     tpHit = false
     slHit = false
 
     if isSignalBar
-        // SIGNAL BAR: Entry happened mid-candle when price crossed the level
-        // We can't know exact intra-candle order, so use close as proxy:
-        // - If close is favorable (>= entry for long), trade is in profit = no SL hit
-        // - If close is unfavorable, check if low/high actually hit SL
+        // SIGNAL BAR: SL is NEVER checked (the low/high was before entry)
+        // Only check if TP was reached on this bar
         if isLong
-            if close >= entry
-                // Closed above entry = trade in profit, SL wasn't hit after entry
-                tpHit := high >= tp  // TP could still be hit
-                slHit := false
-            else
-                // Closed below entry = price dropped after entry, check SL
-                tpHit := high >= tp
-                slHit := low <= sl
-        else  // Short
-            if close <= entry
-                // Closed below entry = trade in profit, SL wasn't hit after entry
-                tpHit := low <= tp
-                slHit := false
-            else
-                // Closed above entry = price rose after entry, check SL
-                tpHit := low <= tp
-                slHit := high >= sl
+            tpHit := high >= tp
+            slHit := false  // Impossible - low was before entry
+        else
+            tpHit := low <= tp
+            slHit := false  // Impossible - high was before entry
     else
-        // NORMAL BARS: Standard high/low check
+        // NORMAL BARS (after signal): Standard high/low check
         if isLong
             tpHit := high >= tp
             slHit := low <= sl
@@ -674,17 +662,15 @@ checkTPSLHit(isLong, tp, sl, isSignalBar, entry) =>
             tpHit := low <= tp
             slHit := high >= sl
 
-    // Determine which was hit first
+    // Determine result
     result = 0  // 0 = none, 1 = TP, -1 = SL
 
     if tpHit and slHit
-        // Both hit - use conflict resolution
-        conflictResolution = isSignalBar ? signalBarMode : nextBarMode
-
-        if conflictResolution == "TP First" or conflictResolution == "Optimistic"
-            result := 1   // TP first
-        else if conflictResolution == "Pessimistic"
-            result := -1  // SL first
+        // Both hit on same bar - use conflict resolution (only on non-signal bars)
+        if nextBarMode == "Optimistic"
+            result := 1
+        else if nextBarMode == "Pessimistic"
+            result := -1
         else  // Open-Based
             if isLong
                 result := open > (tp + sl) / 2 ? -1 : 1
@@ -778,7 +764,7 @@ shortExitSL := false
 // Exit Logic - Check TP/SL
 if inLongTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
-    exitResult = checkTPSLHit(true, tpPrice, slPrice, isSignalBar, entryPrice)
+    exitResult = checkTPSLHit(true, tpPrice, slPrice, isSignalBar)
 
     if exitResult != 0
         posSize = tradePositionSize
@@ -840,7 +826,7 @@ if inLongTrade and bar_index >= entryBar
 
 if inShortTrade and bar_index >= entryBar
     isSignalBar = bar_index == entryBar
-    exitResult = checkTPSLHit(false, tpPrice, slPrice, isSignalBar, entryPrice)
+    exitResult = checkTPSLHit(false, tpPrice, slPrice, isSignalBar)
 
     if exitResult != 0
         posSize = tradePositionSize
