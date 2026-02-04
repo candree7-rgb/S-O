@@ -37,7 +37,8 @@ longC1Condition = input.string("Crossing Under", "  Condition", options=["Crossi
 longC1LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
 longC1Level = input.source(close, "  Level Source", tooltip="Connect to RZ S3", group=groupLongSteps)
 longC1LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupLongSteps)
-longC1Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current). Use for momentum: ATR Band > ATR Band[3]", group=groupLongSteps)
+longC1Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current). Use for momentum: ATR Band > ATR Band[3]", group=groupLongSteps)
+longC1PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting). E.g., ATR Band[1] crosses ATR Band[3]", group=groupLongSteps)
 longC1Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 2 (e.g., High crossing over S1 = TRIGGERED)
@@ -48,7 +49,8 @@ longC2Condition = input.string("Crossing Over", "  Condition", options=["Crossin
 longC2LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
 longC2Level = input.source(close, "  Level Source", tooltip="Connect to RZ S1", group=groupLongSteps)
 longC2LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupLongSteps)
-longC2Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupLongSteps)
+longC2Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupLongSteps)
+longC2PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting)", group=groupLongSteps)
 longC2Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 3 (optional, e.g., RSI < 30)
@@ -59,7 +61,8 @@ longC3Condition = input.string("Greater Than", "  Condition", options=["Crossing
 longC3LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
 longC3Level = input.source(close, "  Level Source", tooltip="Connect same source for momentum check", group=groupLongSteps)
 longC3LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupLongSteps)
-longC3Lookback = input.int(3, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago. E.g., ATR Band > ATR Band[3] = rising", group=groupLongSteps)
+longC3Lookback = input.int(3, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago. E.g., ATR Band > ATR Band[3] = rising", group=groupLongSteps)
+longC3PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting). E.g., ATR Band[1] crosses ATR Band[3]", group=groupLongSteps)
 longC3Step = input.int(3, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Condition 4 (optional)
@@ -70,7 +73,8 @@ longC4Condition = input.string("Greater Than", "  Condition", options=["Crossing
 longC4LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupLongSteps)
 longC4Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupLongSteps)
 longC4LevelValue = input.float(50.0, "  Level Value", tooltip="Numeric value (e.g., 50 for RSI)", group=groupLongSteps)
-longC4Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupLongSteps)
+longC4Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupLongSteps)
+longC4PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting)", group=groupLongSteps)
 longC4Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupLongSteps)
 
 // Step settings
@@ -89,7 +93,8 @@ shortC1Condition = input.string("Crossing Over", "  Condition", options=["Crossi
 shortC1LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
 shortC1Level = input.source(close, "  Level Source", tooltip="Connect to RZ R3", group=groupShortSteps)
 shortC1LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupShortSteps)
-shortC1Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC1Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC1PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting)", group=groupShortSteps)
 shortC1Step = input.int(1, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 2 (e.g., Low crossing under R1 = TRIGGERED)
@@ -100,7 +105,8 @@ shortC2Condition = input.string("Crossing Under", "  Condition", options=["Cross
 shortC2LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
 shortC2Level = input.source(close, "  Level Source", tooltip="Connect to RZ R1", group=groupShortSteps)
 shortC2LevelValue = input.float(30.0, "  Level Value", tooltip="Numeric value (e.g., 30 for RSI)", group=groupShortSteps)
-shortC2Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC2Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC2PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting)", group=groupShortSteps)
 shortC2Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 3 (optional - momentum filter)
@@ -111,7 +117,8 @@ shortC3Condition = input.string("Less Than", "  Condition", options=["Crossing",
 shortC3LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
 shortC3Level = input.source(close, "  Level Source", tooltip="Connect same source for momentum check", group=groupShortSteps)
 shortC3LevelValue = input.float(70.0, "  Level Value", tooltip="Numeric value (e.g., 70 for RSI)", group=groupShortSteps)
-shortC3Lookback = input.int(3, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago. E.g., ATR Band < ATR Band[3] = falling", group=groupShortSteps)
+shortC3Lookback = input.int(3, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago. E.g., ATR Band < ATR Band[3] = falling", group=groupShortSteps)
+shortC3PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting). E.g., ATR Band[1] crosses ATR Band[3]", group=groupShortSteps)
 shortC3Step = input.int(3, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Condition 4 (optional)
@@ -122,7 +129,8 @@ shortC4Condition = input.string("Less Than", "  Condition", options=["Crossing",
 shortC4LevelType = input.string("Source", "  Level Type", options=["Source", "Value"], group=groupShortSteps)
 shortC4Level = input.source(close, "  Level Source", tooltip="Optional condition", group=groupShortSteps)
 shortC4LevelValue = input.float(50.0, "  Level Value", tooltip="Numeric value (e.g., 50 for RSI)", group=groupShortSteps)
-shortC4Lookback = input.int(0, "  Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC4Lookback = input.int(0, "  Level Lookback", minval=0, maxval=50, tooltip="Compare Level from N bars ago (0=current)", group=groupShortSteps)
+shortC4PriceLookback = input.int(0, "  Price Lookback", minval=0, maxval=50, tooltip="Shift Price by N bars (1+ = no repainting)", group=groupShortSteps)
 shortC4Step = input.int(2, "  Step", minval=1, maxval=3, tooltip="1=READY, 2=TRIGGERED, 3=FILTER", group=groupShortSteps)
 
 // Step settings
@@ -266,15 +274,17 @@ getSLDistance() =>
 // MULTI-STEP SIGNAL LOGIC
 // =============================================================================
 
-// Helper: Get price based on selection (with custom source support)
-getStepPrice(priceType, customSource) =>
-    switch priceType
+// Helper: Get price based on selection (with custom source support and lookback)
+// priceLookback: shift price by N bars (1+ = no repainting, uses completed bar data)
+getStepPrice(priceType, customSource, priceLookback) =>
+    basePrice = switch priceType
         "Close" => close
         "Open" => open
         "High" => high
         "Low" => low
         "Custom" => customSource
         => close
+    priceLookback > 0 ? basePrice[priceLookback] : basePrice
 
 // Helper: Get level based on type (source or fixed value) with lookback
 // Lookback shifts the level by N bars (for momentum comparison)
@@ -283,10 +293,11 @@ getStepLevel(levelType, levelSource, levelValue, lookback) =>
     lookback > 0 ? baseLevel[lookback] : baseLevel
 
 // Helper: Check step condition (with "Crossing" = either direction)
-// Lookback: compare Price (current) vs Level (N bars ago)
-checkConditionFull(priceType, customSource, condition, levelType, levelSource, levelValue, lookback) =>
-    price = getStepPrice(priceType, customSource)
-    level = getStepLevel(levelType, levelSource, levelValue, lookback)
+// levelLookback: compare vs Level from N bars ago
+// priceLookback: shift Price by N bars (1+ = no repainting)
+checkConditionFull(priceType, customSource, condition, levelType, levelSource, levelValue, levelLookback, priceLookback) =>
+    price = getStepPrice(priceType, customSource, priceLookback)
+    level = getStepLevel(levelType, levelSource, levelValue, levelLookback)
     switch condition
         "Crossing" => ta.crossunder(price, level) or ta.crossover(price, level)
         "Crossing Under" => ta.crossunder(price, level)
@@ -304,16 +315,16 @@ isTriggerCondition(condition) =>
     condition == "Crossing" or condition == "Crossing Under" or condition == "Crossing Over"
 
 // Check each Long condition (with lookback support for momentum filters)
-longC1Met = longC1Enable ? checkConditionFull(longC1PriceType, longC1PriceCustom, longC1Condition, longC1LevelType, longC1Level, longC1LevelValue, longC1Lookback) : true
-longC2Met = longC2Enable ? checkConditionFull(longC2PriceType, longC2PriceCustom, longC2Condition, longC2LevelType, longC2Level, longC2LevelValue, longC2Lookback) : true
-longC3Met = longC3Enable ? checkConditionFull(longC3PriceType, longC3PriceCustom, longC3Condition, longC3LevelType, longC3Level, longC3LevelValue, longC3Lookback) : true
-longC4Met = longC4Enable ? checkConditionFull(longC4PriceType, longC4PriceCustom, longC4Condition, longC4LevelType, longC4Level, longC4LevelValue, longC4Lookback) : true
+longC1Met = longC1Enable ? checkConditionFull(longC1PriceType, longC1PriceCustom, longC1Condition, longC1LevelType, longC1Level, longC1LevelValue, longC1Lookback, longC1PriceLookback) : true
+longC2Met = longC2Enable ? checkConditionFull(longC2PriceType, longC2PriceCustom, longC2Condition, longC2LevelType, longC2Level, longC2LevelValue, longC2Lookback, longC2PriceLookback) : true
+longC3Met = longC3Enable ? checkConditionFull(longC3PriceType, longC3PriceCustom, longC3Condition, longC3LevelType, longC3Level, longC3LevelValue, longC3Lookback, longC3PriceLookback) : true
+longC4Met = longC4Enable ? checkConditionFull(longC4PriceType, longC4PriceCustom, longC4Condition, longC4LevelType, longC4Level, longC4LevelValue, longC4Lookback, longC4PriceLookback) : true
 
 // Check each Short condition (with lookback support for momentum filters)
-shortC1Met = shortC1Enable ? checkConditionFull(shortC1PriceType, shortC1PriceCustom, shortC1Condition, shortC1LevelType, shortC1Level, shortC1LevelValue, shortC1Lookback) : true
-shortC2Met = shortC2Enable ? checkConditionFull(shortC2PriceType, shortC2PriceCustom, shortC2Condition, shortC2LevelType, shortC2Level, shortC2LevelValue, shortC2Lookback) : true
-shortC3Met = shortC3Enable ? checkConditionFull(shortC3PriceType, shortC3PriceCustom, shortC3Condition, shortC3LevelType, shortC3Level, shortC3LevelValue, shortC3Lookback) : true
-shortC4Met = shortC4Enable ? checkConditionFull(shortC4PriceType, shortC4PriceCustom, shortC4Condition, shortC4LevelType, shortC4Level, shortC4LevelValue, shortC4Lookback) : true
+shortC1Met = shortC1Enable ? checkConditionFull(shortC1PriceType, shortC1PriceCustom, shortC1Condition, shortC1LevelType, shortC1Level, shortC1LevelValue, shortC1Lookback, shortC1PriceLookback) : true
+shortC2Met = shortC2Enable ? checkConditionFull(shortC2PriceType, shortC2PriceCustom, shortC2Condition, shortC2LevelType, shortC2Level, shortC2LevelValue, shortC2Lookback, shortC2PriceLookback) : true
+shortC3Met = shortC3Enable ? checkConditionFull(shortC3PriceType, shortC3PriceCustom, shortC3Condition, shortC3LevelType, shortC3Level, shortC3LevelValue, shortC3Lookback, shortC3PriceLookback) : true
+shortC4Met = shortC4Enable ? checkConditionFull(shortC4PriceType, shortC4PriceCustom, shortC4Condition, shortC4LevelType, shortC4Level, shortC4LevelValue, shortC4Lookback, shortC4PriceLookback) : true
 
 // Check which conditions are assigned to which steps
 longC1OnStep1 = longC1Enable and longC1Step == 1
