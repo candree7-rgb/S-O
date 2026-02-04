@@ -216,8 +216,8 @@ groupWebhook = "WEBHOOK / ALERTS"
 enableWebhookAlerts = input.bool(false, "Enable Webhook Alerts", tooltip="Enable alerts for Railway/Supabase webhook integration", group=groupWebhook)
 
 // ML Feature inputs (optional - for extra data in alerts)
-extRSI = input.source(close, "RSI Source (ML)", tooltip="Connect to RSI for ML data export", group=groupWebhook)
-extVolume = input.source(close, "Volume Ratio (ML)", tooltip="Connect to volume ratio for ML data", group=groupWebhook)
+extRSI = input.source(close, "RSI Source (ML)", tooltip="Connect to RSI indicator for ML data export", group=groupWebhook)
+// Volume Ratio calculated internally: current volume / 20-period average
 
 // =============================================================================
 // CALCULATIONS
@@ -225,6 +225,10 @@ extVolume = input.source(close, "Volume Ratio (ML)", tooltip="Connect to volume 
 
 // ATR Calculation
 atr = ta.atr(atrLength)
+
+// Volume Ratio for ML (current volume / 20-period average)
+volumeRatio = volume / ta.sma(volume, 20)
+atrPercent = (atr / close) * 100
 
 // Get Entry Price for Long trades
 getLongEntryPrice() =>
@@ -1080,8 +1084,8 @@ if enableWebhookAlerts
     if shortReady and not shortReadyNew
         alert('{"type":"UPDATE","direction":"SHORT","coin":"' + syminfo.ticker + '","entry":' + str.tostring(projectedShortEntry) + ',"tp":' + str.tostring(projectedShortTP) + ',"sl":' + str.tostring(projectedShortSL) + ',"barsReady":' + str.tostring(barsInShortReady) + ',"time":"' + str.tostring(timenow) + '"}', alert.freq_once_per_bar_close)
 
-    // TRIGGERED - Signal fired, place order now
+    // TRIGGERED - Signal fired, place order now (includes ML features for scoring)
     if longSignal
-        alert('{"type":"TRIGGERED","direction":"LONG","coin":"' + syminfo.ticker + '","entry":' + str.tostring(entryPrice) + ',"tp":' + str.tostring(tpPrice) + ',"sl":' + str.tostring(slPrice) + ',"time":"' + str.tostring(timenow) + '"}', alert.freq_once_per_bar_close)
+        alert('{"type":"TRIGGERED","direction":"LONG","coin":"' + syminfo.ticker + '","entry":' + str.tostring(entryPrice) + ',"tp":' + str.tostring(tpPrice) + ',"sl":' + str.tostring(slPrice) + ',"rsi":' + str.tostring(extRSI) + ',"volumeRatio":' + str.tostring(volumeRatio) + ',"atrPercent":' + str.tostring(atrPercent) + ',"time":"' + str.tostring(timenow) + '"}', alert.freq_once_per_bar)
     if shortSignal
-        alert('{"type":"TRIGGERED","direction":"SHORT","coin":"' + syminfo.ticker + '","entry":' + str.tostring(entryPrice) + ',"tp":' + str.tostring(tpPrice) + ',"sl":' + str.tostring(slPrice) + ',"time":"' + str.tostring(timenow) + '"}', alert.freq_once_per_bar_close)
+        alert('{"type":"TRIGGERED","direction":"SHORT","coin":"' + syminfo.ticker + '","entry":' + str.tostring(entryPrice) + ',"tp":' + str.tostring(tpPrice) + ',"sl":' + str.tostring(slPrice) + ',"rsi":' + str.tostring(extRSI) + ',"volumeRatio":' + str.tostring(volumeRatio) + ',"atrPercent":' + str.tostring(atrPercent) + ',"time":"' + str.tostring(timenow) + '"}', alert.freq_once_per_bar)
